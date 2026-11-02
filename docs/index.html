@@ -39,13 +39,13 @@
         <label class="field">First name
           <input name="first_name" autocomplete="given-name" maxlength="100" required>
         </label>
-        <label class="field">University email
+        <label class="field">Email
           <input name="email" type="email" autocomplete="email" maxlength="254" required>
         </label>
 
         <label class="check">
           <input type="checkbox" name="consent" required>
-          <span>I consent to my contact details being stored temporarily to send appointment reminders by email. All contact details will be permanently deleted upon study completion.</span>
+          <span>I consent to my contact details being stored temporarily and used to send my booking confirmation and appointment reminders by email, through a Gmail account run by the research team. All contact details will be permanently deleted upon study completion.</span>
         </label>
 
         <p class="error" id="book-error" role="alert" hidden></p>
@@ -60,8 +60,12 @@
         <dt>Time</dt><dd id="confirm-time"></dd>
         <dt>Room</dt><dd id="confirm-room"></dd>
       </dl>
-      <button class="button primary" type="button" id="download-ics">Download Calendar Invite (.ics)</button>
-      <p class="notice"><strong>Take a screenshot of this page.</strong> Use this personal link if you cannot make it. It will not be shown again:</p>
+      <div class="calendar-buttons">
+        <a class="button primary" id="add-outlook" target="_blank" rel="noopener noreferrer">Add to Outlook</a>
+        <a class="button primary" id="add-google" target="_blank" rel="noopener noreferrer">Add to Google Calendar</a>
+        <button class="button" type="button" id="download-ics">Download Calendar File (.ics)</button>
+      </div>
+      <p class="notice"><strong>Can't make it?</strong> Use your personal cancellation link below to give up your seat. Opening it only asks you to confirm, so nothing is cancelled until you do. We will also email you this link within a few minutes, along with your booking details. If it does not arrive, check your spam folder. This page will not be shown again, so copy the link or take a screenshot until you have the email. It is also in the downloaded calendar file and in any reminder email we send you.</p>
       <p class="mono link-line"><a id="confirm-cancel-link"></a></p>
     </section>
 
@@ -76,7 +80,7 @@
     <p class="error" id="fatal" role="alert" hidden></p>
 
     <footer class="footer">
-      Your details are used only to manage your appointment and are visible only to the research team.
+      Your details are used only to manage your appointment and are visible only to the research team and, because we send email through Gmail, to Google as our email provider.
       To withdraw consent or ask about your data, email <a id="contact"></a>.
     </footer>
   </main>

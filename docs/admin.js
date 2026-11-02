@@ -232,7 +232,9 @@ function participantRow(signup, slot) {
       h('strong', {}, signup.first_name),
       h('span', { className: 'email' }, signup.email),
       h('span', { className: 'badge mono' }, signup.status.replace('_', '-').toUpperCase()),
-      remindedBadge(signup)),
+      remindedBadge(signup),
+      signup.status === 'booked' && !signup.confirmation_sent_at
+        && h('span', { className: 'badge mono' }, 'CONFIRMATION NOT SENT')),
     h('div', { className: 'participant-actions' },
       signup.status !== 'cancelled' && reminderLink(signup, slot),
       STATUS_ACTIONS.map(([status, label]) => h('button', {

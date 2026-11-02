@@ -114,6 +114,7 @@ select {
 #book-form > .button.primary, #view-confirm .button.primary, .cancel-submit { width: 100%; }
 .cancel-submit { margin-top: 16px; }
 .button-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.calendar-buttons { display: grid; gap: 8px; }
 
 .notice { margin: 16px 0; padding: 12px; background: var(--surface); border: 1px solid var(--black); font-size: 14px; }
 .error { margin: 12px 0; padding: 12px; background: var(--white); border: 2px solid var(--black); font-weight: 700; font-size: 14px; }

@@ -1,5 +1,6 @@
 -- Experiment sign-up schema. Idempotent: safe to re-run in the Supabase SQL Editor.
 -- Anonymous visitors reach the data only through the three public RPCs below.
+-- The Gmail mailer (apps-script/mailer.gs) uses two more, which require its secret.
 
 -- ---------------------------------------------------------------------------
 -- Tables
@@ -54,6 +55,7 @@ create table if not exists public.signups (
 );
 
 alter table public.signups add column if not exists reminded_at timestamptz;
+alter table public.signups add column if not exists confirmation_sent_at timestamptz;
 
 -- Upgrades a database created when phone numbers were collected, and deletes them.
 alter table public.signups drop column if exists phone;
@@ -73,6 +75,15 @@ create table if not exists public.admin_users (
   user_id uuid primary key references auth.users (id) on delete cascade
 );
 
+-- The Gmail mailer's secret. No API role can read it; copy it from the SQL Editor.
+create table if not exists public.mailer_secret (
+  secret uuid primary key default gen_random_uuid()
+);
+
+insert into public.mailer_secret (secret)
+select gen_random_uuid()
+where not exists (select 1 from public.mailer_secret);
+
 -- ---------------------------------------------------------------------------
 -- Row-level security
 -- ---------------------------------------------------------------------------
@@ -90,6 +101,7 @@ $$;
 alter table public.slots       enable row level security;
 alter table public.signups     enable row level security;
 alter table public.admin_users enable row level security;
+alter table public.mailer_secret enable row level security;
 
 drop policy if exists slots_admin_all on public.slots;
 create policy slots_admin_all on public.slots
@@ -226,21 +238,89 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Mailer RPCs
+-- ---------------------------------------------------------------------------
+
+-- Raises FORBIDDEN. Only 'booked' people are emailed, so walk-ins and people
+-- already marked confirmed get nothing. Someone who books inside the reminder
+-- window gets only the confirmation. 48 hours matches REMINDER_WINDOW_HOURS in docs/config.js.
+create or replace function public.get_pending_emails(p_secret uuid)
+returns table (
+  id           uuid,
+  kind         text,
+  first_name   text,
+  email        text,
+  cancel_token uuid,
+  start_time   timestamptz,
+  end_time     timestamptz,
+  room         text
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if not exists (select 1 from public.mailer_secret ms where ms.secret = p_secret) then
+    raise exception 'FORBIDDEN';
+  end if;
+
+  return query
+    select su.id,
+           case when su.confirmation_sent_at is null then 'confirmation' else 'reminder' end,
+           su.first_name, su.email, su.cancel_token, s.start_time, s.end_time, s.room
+    from public.signups su
+    join public.slots s on s.id = su.slot_id
+    where su.status = 'booked'
+      and s.start_time > now()
+      and (su.confirmation_sent_at is null
+           or (su.reminded_at is null
+               and s.start_time <= now() + interval '48 hours'
+               and su.created_at < s.start_time - interval '48 hours'))
+    order by s.start_time, su.created_at;
+end;
+$$;
+
+-- Raises FORBIDDEN.
+create or replace function public.mark_email_sent(p_secret uuid, p_signup_id uuid, p_kind text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not exists (select 1 from public.mailer_secret ms where ms.secret = p_secret) then
+    raise exception 'FORBIDDEN';
+  end if;
+
+  update public.signups su
+  set confirmation_sent_at = case when p_kind = 'confirmation' then now() else su.confirmation_sent_at end,
+      reminded_at          = case when p_kind = 'reminder' then now() else su.reminded_at end
+  where su.id = p_signup_id;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Privileges
 -- ---------------------------------------------------------------------------
 
 -- Supabase's default privileges grant new objects directly to anon and
 -- authenticated, so revoking from PUBLIC alone would change nothing.
-revoke all on public.slots, public.signups, public.admin_users from public, anon, authenticated;
+revoke all on public.slots, public.signups, public.admin_users, public.mailer_secret from public, anon, authenticated;
 grant select, insert, update, delete on public.slots, public.signups to authenticated;
 
 revoke all on function public.is_admin() from public, anon, authenticated;
 revoke all on function public.get_available_slots() from public, anon, authenticated;
 revoke all on function public.book_slot(uuid, text, text, text) from public, anon, authenticated;
 revoke all on function public.cancel_booking(uuid) from public, anon, authenticated;
+revoke all on function public.get_pending_emails(uuid) from public, anon, authenticated;
+revoke all on function public.mark_email_sent(uuid, uuid, text) from public, anon, authenticated;
 
 grant execute on function public.is_admin() to authenticated;
 -- authenticated too: a researcher signed in on the same origin hits the public page with that role.
 grant execute on function public.get_available_slots() to anon, authenticated;
 grant execute on function public.book_slot(uuid, text, text, text) to anon, authenticated;
 grant execute on function public.cancel_booking(uuid) to anon, authenticated;
+-- anon because the mailer calls with the public key; the secret is what protects these.
+grant execute on function public.get_pending_emails(uuid) to anon;
+grant execute on function public.mark_email_sent(uuid, uuid, text) to anon;

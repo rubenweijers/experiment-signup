@@ -128,6 +128,8 @@ function showConfirmation(booking) {
   $('confirm-room').textContent = booking.room;
   $('confirm-cancel-link').href = link;
   $('confirm-cancel-link').textContent = link;
+  $('add-outlook').href = outlookUrl(booking);
+  $('add-google').href = googleUrl(booking);
   $('download-ics').onclick = () => downloadIcs(booking, link);
   show('view-confirm');
   scrollTo(0, 0);
@@ -163,6 +165,36 @@ function foldIcsLine(line) {
   return chunks.join('\r\n');
 }
 
+// The label may already name the room.
+function eventLocation(booking) {
+  return LOCATION_LABEL.includes(booking.room) ? LOCATION_LABEL : `${booking.room}, ${LOCATION_LABEL}`;
+}
+
+// These links hand the event to Microsoft or Google, so they leave out the personal cancel link.
+function outlookUrl(booking) {
+  const params = new URLSearchParams({
+    path: '/calendar/action/compose',
+    rru: 'addevent',
+    subject: STUDY_TITLE,
+    startdt: new Date(booking.start_time).toISOString(),
+    enddt: new Date(booking.end_time).toISOString(),
+    location: eventLocation(booking),
+    body: `Compensation: ${COMPENSATION_LABEL}`,
+  });
+  return `https://outlook.office.com/calendar/0/deeplink/compose?${params}`;
+}
+
+function googleUrl(booking) {
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: STUDY_TITLE,
+    dates: `${icsTime(booking.start_time)}/${icsTime(booking.end_time)}`,
+    location: eventLocation(booking),
+    details: `Compensation: ${COMPENSATION_LABEL}`,
+  });
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
 function downloadIcs(booking, link) {
   const ics = [
     'BEGIN:VCALENDAR',
@@ -176,7 +208,7 @@ function downloadIcs(booking, link) {
     `DTSTART:${icsTime(booking.start_time)}`,
     `DTEND:${icsTime(booking.end_time)}`,
     `SUMMARY:${icsText(STUDY_TITLE)}`,
-    `LOCATION:${icsText(`${booking.room}, ${LOCATION_LABEL}`)}`,
+    `LOCATION:${icsText(eventLocation(booking))}`,
     `DESCRIPTION:${icsText(`Compensation: ${COMPENSATION_LABEL}\nCannot make it? Cancel here: ${link}`)}`,
     'END:VEVENT',
     'END:VCALENDAR',
