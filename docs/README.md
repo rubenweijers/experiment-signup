@@ -51,6 +51,7 @@ GitHub turns off scheduled workflows after 60 days without repository activity. 
 - **Seats:** only `booked` and `confirmed` hold a public seat. A slot leaves the public list when full and returns when someone cancels.
 - **One participation per person:** an email address cannot book while it has a `booked`, `confirmed` or `completed` record. People who cancelled or were marked no-show can book again. Someone using a different address can get past this check.
 - **Walk-ins:** they are saved as `confirmed` and need a free seat. If someone does not turn up, mark them **No-Show** first; the **+ Add Walk-in** button then appears.
+- **Reminders:** the **Reminders** section lists everyone with a session in the next 48 hours (`REMINDER_WINDOW_HOURS`) who is still `booked`. **Email Reminder** opens a draft in your mail app and marks the person as reminded; click **Not Sent** if you close the draft without sending. When someone replies YES, click **Confirmed** and they leave the list.
 - **Do not store experimental data here.** While contact details exist, the Group ID links people to their group, so treat any dataset using that ID as pseudonymised until the contact details are deleted.
 
 ## Deleting contact details

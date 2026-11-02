@@ -1,4 +1,4 @@
-import { COMPENSATION_LABEL, DEFAULT_ROOM, DEFAULT_SLOT_MINUTES, QUOTA_PER_CONDITION, STUDY_TITLE } from './config.js';
+import { COMPENSATION_LABEL, DEFAULT_ROOM, DEFAULT_SLOT_MINUTES, QUOTA_PER_CONDITION, REMINDER_WINDOW_HOURS, STUDY_TITLE } from './config.js';
 import { fmtDay, fmtLongDay, fmtRange, groupByDay, h, isConfigured, localParts, sb, zonedToIso } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
@@ -45,6 +45,7 @@ async function load() {
 
 function render() {
   renderQuota();
+  renderReminders();
   renderRoster();
 }
 
@@ -167,6 +168,54 @@ function reminderEmailUrl(signup, slot) {
   return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
 }
 
+// Opening the draft counts as reminded: the page cannot see whether it was sent, so 'Not Sent' undoes it.
+function reminderLink(signup, slot) {
+  return h('a', {
+    className: 'button primary small',
+    href: reminderEmailUrl(signup, slot),
+    onclick: () => write(sb.from('signups').update({ reminded_at: new Date().toISOString() }).eq('id', signup.id)),
+  }, signup.reminded_at ? 'Send Again' : 'Email Reminder');
+}
+
+function remindedBadge(signup) {
+  return signup.reminded_at && h('span', { className: 'badge mono' }, `REMINDED ${fmtDay(signup.reminded_at)}`);
+}
+
+// Everyone in the coming window who has not confirmed yet.
+function renderReminders() {
+  const now = Date.now();
+  const limit = now + REMINDER_WINDOW_HOURS * 3600000;
+  const due = state.slots
+    .filter((slot) => Date.parse(slot.start_time) > now && Date.parse(slot.start_time) <= limit)
+    .flatMap((slot) => slot.signups.filter((s) => s.status === 'booked').map((signup) => ({ signup, slot })));
+  const toSend = due.filter(({ signup }) => !signup.reminded_at).length;
+
+  $('reminders-title').textContent = `Reminders: next ${REMINDER_WINDOW_HOURS} hours (${toSend} to send)`;
+  if (!due.length) {
+    $('reminders').replaceChildren(h('p', { className: 'empty' }, 'Nobody to remind.'));
+    return;
+  }
+  $('reminders').replaceChildren(h('ul', { className: 'participants' }, due.map(({ signup, slot }) =>
+    h('li', { className: 'participant' },
+      h('div', { className: 'participant-info' },
+        h('span', { className: 'mono strong' }, `${fmtDay(slot.start_time)} ${fmtRange(slot.start_time, slot.end_time)}`),
+        h('strong', {}, signup.first_name),
+        h('span', { className: 'email' }, signup.email),
+        remindedBadge(signup)),
+      h('div', { className: 'participant-actions' },
+        reminderLink(signup, slot),
+        signup.reminded_at && h('button', {
+          className: 'button small',
+          type: 'button',
+          onclick: () => write(sb.from('signups').update({ reminded_at: null }).eq('id', signup.id)),
+        }, 'Not Sent'),
+        h('button', {
+          className: 'button small',
+          type: 'button',
+          onclick: () => write(sb.from('signups').update({ status: 'confirmed' }).eq('id', signup.id)),
+        }, 'Confirmed'))))));
+}
+
 function seatsTaken(slot) {
   return slot.signups.filter((s) => SEAT_TAKEN.has(s.status)).length;
 }
@@ -182,12 +231,10 @@ function participantRow(signup, slot) {
     h('div', { className: 'participant-info' },
       h('strong', {}, signup.first_name),
       h('span', { className: 'email' }, signup.email),
-      h('span', { className: 'badge mono' }, signup.status.replace('_', '-').toUpperCase())),
+      h('span', { className: 'badge mono' }, signup.status.replace('_', '-').toUpperCase()),
+      remindedBadge(signup)),
     h('div', { className: 'participant-actions' },
-      signup.status !== 'cancelled' && h('a', {
-        className: 'button primary small',
-        href: reminderEmailUrl(signup, slot),
-      }, 'Email Reminder'),
+      signup.status !== 'cancelled' && reminderLink(signup, slot),
       STATUS_ACTIONS.map(([status, label]) => h('button', {
         type: 'button',
         className: 'button small',

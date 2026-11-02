@@ -49,8 +49,11 @@ create table if not exists public.signups (
                check (status in ('booked', 'confirmed', 'cancelled', 'no_show', 'completed')),
   cancel_token uuid default gen_random_uuid() unique,
   client_hash  text,
+  reminded_at  timestamptz,
   created_at   timestamptz default now()
 );
+
+alter table public.signups add column if not exists reminded_at timestamptz;
 
 -- Upgrades a database created when phone numbers were collected, and deletes them.
 alter table public.signups drop column if exists phone;
