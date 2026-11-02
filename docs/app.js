@@ -236,7 +236,8 @@ function startCancelView(token) {
 document.title = STUDY_TITLE;
 $('study-title').textContent = STUDY_TITLE;
 $('fact-duration').textContent = DURATION_LABEL;
-$('fact-compensation').textContent = COMPENSATION_LABEL;
+const [beforeAmount, amount = '', afterAmount = ''] = COMPENSATION_LABEL.split(/(€\d+)/);
+$('fact-compensation').replaceChildren(beforeAmount, h('span', { className: 'money' }, amount), afterAmount);
 $('fact-location').textContent = LOCATION_LABEL;
 $('contact').href = `mailto:${CONTACT_EMAIL}`;
 $('contact').textContent = CONTACT_EMAIL;

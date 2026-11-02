@@ -4,7 +4,7 @@ import { countrySelect, fmtDay, fmtLongDay, fmtRange, groupByDay, h, isConfigure
 const $ = (id) => document.getElementById(id);
 
 const GROUP_SIZE = { '2P': 2, '3P': 3 };
-const CONDITION_LABEL = { '2P': '2-Person Condition', '3P': '3-Person Condition' };
+const CONDITION_LABEL = { '2P': 'HHR Condition', '3P': 'HHH Condition' };
 const STATUS_ACTIONS = [
   ['booked', 'Booked'],
   ['confirmed', 'Confirmed'],
@@ -70,9 +70,25 @@ function renderQuota() {
 
 // --- Slots ---
 
+// '2026-11-09' -> '09/11/2026'
+function displayDate(isoDate) {
+  return isoDate.split('-').reverse().join('/');
+}
+
+// '09/11/2026' -> '2026-11-09', or null if that is not a real date.
+function parseDisplayDate(text) {
+  const match = text.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return null;
+  const iso = `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+  const real = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(real.getTime()) && real.toISOString().startsWith(iso) ? iso : null;
+}
+
 function slotFromForm(form) {
-  const { date, start, end, room } = Object.fromEntries(new FormData(form));
-  if (!date || !start || !end || !room.trim()) return { problem: 'Date, start, end and room are all required.' };
+  const { date: dateText, start, end, room } = Object.fromEntries(new FormData(form));
+  if (!dateText || !start || !end || !room.trim()) return { problem: 'Date, start, end and room are all required.' };
+  const date = parseDisplayDate(dateText);
+  if (!date) return { problem: 'Enter the date as DD/MM/YYYY.' };
   if (end <= start) return { problem: 'The end time must be after the start time.' };
   return {
     slot: {
@@ -235,7 +251,7 @@ function editForm(slot) {
 
   return h('form', { className: 'slot-edit', noValidate: true, onsubmit: submit },
     h('div', { className: 'slot-fields' },
-      h('label', { className: 'field' }, 'Date ', h('input', { name: 'date', type: 'date', value: date })),
+      h('label', { className: 'field' }, 'Date ', h('input', { name: 'date', inputMode: 'numeric', autocomplete: 'off', placeholder: 'DD/MM/YYYY', value: displayDate(date) })),
       h('label', { className: 'field' }, 'Start ', h('input', { name: 'start', type: 'time', value: start })),
       h('label', { className: 'field' }, 'End ', h('input', { name: 'end', type: 'time', value: end })),
       h('label', { className: 'field' }, 'Room ', h('input', { name: 'room', value: slot.room }))),
@@ -382,7 +398,7 @@ if (!isConfigured) {
 } else {
   const addForm = $('add-slot');
   addForm.room.value = DEFAULT_ROOM;
-  addForm.date.value = localParts(new Date())[0];
+  addForm.date.value = displayDate(localParts(new Date())[0]);
   addForm.start.addEventListener('change', () => {
     if (addForm.start.value) addForm.end.value = addMinutes(addForm.start.value, DEFAULT_SLOT_MINUTES);
   });

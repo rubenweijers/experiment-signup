@@ -10,6 +10,7 @@
   --white: #ffffff;
   --surface: #f5f5f5;
   --hairline: #e0e0e0;
+  --green: #0a7d33;
   --sans: 'Roboto', Arial, sans-serif;
   --mono: 'Roboto Mono', Consolas, monospace;
 }
@@ -39,6 +40,28 @@ a { color: inherit; }
 .facts { list-style: none; padding: 0; margin-top: 14px; }
 .facts li { padding: 3px 0; font-weight: 500; }
 .facts span { font-family: var(--mono); font-weight: 400; }
+/* A coin-like hop and glint every 7 s; otherwise still. */
+.facts .money {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--green);
+  background: linear-gradient(100deg, var(--green) 40%, #5fd98a 50%, var(--green) 60%) 100% 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: money-glint 7s ease-in-out 1s infinite;
+}
+@keyframes money-glint {
+  0% { transform: translateY(0); background-position: 100% 0; }
+  4% { transform: translateY(-3px); }
+  8% { transform: translateY(0); }
+  11% { transform: translateY(-1px); }
+  14% { transform: translateY(0); }
+  18%, 100% { transform: translateY(0); background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .facts .money { animation: none; }
+}
 
 .block { padding: 24px 0; border-bottom: 1px solid var(--hairline); }
 .footer { padding-top: 20px; font-size: 13px; }
@@ -168,8 +191,8 @@ select {
 
 @media (min-width: 720px) {
   .container { padding-top: 40px; }
-  .slot-fields { grid-template-columns: 150px 110px 110px minmax(0, 1fr) 100px auto; }
-  .slot-edit .slot-fields { grid-template-columns: 150px 110px 110px minmax(0, 1fr); }
+  .slot-fields { grid-template-columns: 150px 140px 140px minmax(0, 1fr) 100px auto; }
+  .slot-edit .slot-fields { grid-template-columns: 150px 140px 140px minmax(0, 1fr); }
   .walkin { grid-template-columns: 1fr 1.3fr 1.6fr auto; align-items: center; }
   .walkin .error { grid-column: 1 / -1; }
   .participant { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; }
