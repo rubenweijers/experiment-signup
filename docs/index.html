@@ -4,10 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.supabase.co https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; font-src 'self'; connect-src https://*.supabase.co https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
   <title>Study sign-up</title>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -56,8 +54,6 @@
           <input type="checkbox" name="consent" required>
           <span>I consent to my contact details being stored temporarily to send appointment reminders via WhatsApp/email. All contact details will be permanently deleted upon study completion.</span>
         </label>
-
-        <p class="notice">Note: Multiple lab sessions run simultaneously. Signing up for the same timeslot as a peer does not guarantee you will be assigned to the same room or condition.</p>
 
         <p class="error" id="book-error" role="alert" hidden></p>
         <button class="button primary" type="submit" id="book-submit">Book this timeslot</button>

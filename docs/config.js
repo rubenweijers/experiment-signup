@@ -4,7 +4,7 @@ export const SUPABASE_URL = 'https://ggewamsgudwvpwhtzxdy.supabase.co';
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnZXdhbXNndWR3dnB3aHR6eGR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MTc5MzUsImV4cCI6MjEwOTE5MzkzNX0.wszEXKwDFjvdpEQRDXFFHqj1yEkccpbPJYdqw3SXoq8';
 
 // Shown to participants. Keep the title neutral: it must not reveal a condition.
-export const STUDY_TITLE = 'Group Design Study';
+export const STUDY_TITLE = 'Group Design Experiment';
 export const DURATION_LABEL = '~60 mins';
 export const COMPENSATION_LABEL = '€20 in cash';
 export const LOCATION_LABEL = 'Room 4B-280: IDE, Building 32, TU Delft';

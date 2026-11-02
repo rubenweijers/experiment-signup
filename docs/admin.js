@@ -71,7 +71,7 @@ function renderQuota() {
 // --- Slots ---
 
 function slotFromForm(form) {
-  const { date, start, end, room, capacity } = Object.fromEntries(new FormData(form));
+  const { date, start, end, room } = Object.fromEntries(new FormData(form));
   if (!date || !start || !end || !room.trim()) return { problem: 'Date, start, end and room are all required.' };
   if (end <= start) return { problem: 'The end time must be after the start time.' };
   return {
@@ -79,7 +79,6 @@ function slotFromForm(form) {
       start_time: zonedToIso(date, start),
       end_time: zonedToIso(date, end),
       room: room.trim(),
-      capacity: Number(capacity),
     },
   };
 }
@@ -94,12 +93,12 @@ async function addSlot(event) {
   event.preventDefault();
   const form = event.target;
   const { slot, problem } = slotFromForm(form);
-  if (problem) {
-    showError($('admin-error'), problem);
+  if (problem || !form.condition.value) {
+    showError($('admin-error'), problem ?? 'Choose a condition: it sets how many people can book the slot.');
     scrollTo(0, 0);
     return;
   }
-  if (await write(sb.from('slots').insert(slot))) {
+  if (await write(sb.from('slots').insert({ ...slot, condition: form.condition.value }))) {
     // Ready for the next consecutive slot on the same day.
     form.start.value = form.end.value;
     form.end.value = addMinutes(form.end.value, DEFAULT_SLOT_MINUTES);
@@ -118,7 +117,7 @@ function duplicateRows(slots) {
     start_time: nextWeek(s.start_time),
     end_time: nextWeek(s.end_time),
     room: s.room,
-    capacity: s.capacity,
+    condition: s.condition,
   }));
 }
 
@@ -149,7 +148,13 @@ function whatsappUrl(signup, slot) {
   return `https://wa.me/${signup.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
 }
 
+function seatsTaken(slot) {
+  return slot.signups.filter((s) => SEAT_TAKEN.has(s.status)).length;
+}
+
 function participantRow(signup, slot) {
+  // Someone without a seat cannot be put back into a full slot.
+  const noSeatFree = !SEAT_TAKEN.has(signup.status) && seatsTaken(slot) >= slot.capacity;
   const setStatus = (status) => write(
     sb.from('signups').update({ status }).eq('id', signup.id),
     'This person already has another active booking or has taken part already.');
@@ -170,7 +175,7 @@ function participantRow(signup, slot) {
       STATUS_ACTIONS.map(([status, label]) => h('button', {
         type: 'button',
         className: 'button small',
-        disabled: signup.status === status,
+        disabled: signup.status === status || (noSeatFree && SEAT_TAKEN.has(status)),
         onclick: () => setStatus(status),
       }, label))));
 }
@@ -233,10 +238,7 @@ function editForm(slot) {
       h('label', { className: 'field' }, 'Date ', h('input', { name: 'date', type: 'date', value: date })),
       h('label', { className: 'field' }, 'Start ', h('input', { name: 'start', type: 'time', value: start })),
       h('label', { className: 'field' }, 'End ', h('input', { name: 'end', type: 'time', value: end })),
-      h('label', { className: 'field' }, 'Room ', h('input', { name: 'room', value: slot.room })),
-      h('label', { className: 'field' }, 'Capacity ',
-        h('select', { name: 'capacity', value: String(slot.capacity) },
-          [3, 4].map((c) => h('option', { value: String(c) }, String(c)))))),
+      h('label', { className: 'field' }, 'Room ', h('input', { name: 'room', value: slot.room }))),
     h('label', { className: 'field' }, 'Internal notes ', h('input', { name: 'notes', value: slot.notes ?? '' })),
     h('label', { className: 'check' }, h('input', { name: 'is_active', type: 'checkbox', checked: slot.is_active }),
       h('span', {}, 'Open for public booking')),
@@ -250,7 +252,7 @@ function editForm(slot) {
 }
 
 function slotCard(slot) {
-  const seats = slot.signups.filter((s) => SEAT_TAKEN.has(s.status)).length;
+  const seats = seatsTaken(slot);
   const full = seats >= slot.capacity;
   const now = Date.now();
   const running = Date.parse(slot.start_time) <= now && now < Date.parse(slot.end_time);
@@ -267,9 +269,9 @@ function slotCard(slot) {
   });
   const conditionSelect = h('select', {
     'aria-label': 'Condition',
-    value: slot.condition ?? '',
-    onchange: (event) => write(sb.from('slots').update({ condition: event.target.value || null }).eq('id', slot.id)),
-  }, h('option', { value: '' }, '—'), h('option', { value: '2P' }, '2P'), h('option', { value: '3P' }, '3P'));
+    value: slot.condition,
+    onchange: (event) => write(sb.from('slots').update({ condition: event.target.value }).eq('id', slot.id)),
+  }, h('option', { value: '2P' }, '2P'), h('option', { value: '3P' }, '3P'));
 
   return h('article', { className: `slot${running ? ' running' : ''}${slot.is_active ? '' : ' inactive'}` },
     h('header', { className: 'slot-head' },
@@ -303,7 +305,7 @@ function slotCard(slot) {
       ? h('ul', { className: 'participants' }, signups.map((signup) => participantRow(signup, slot)))
       : h('p', { className: 'empty' }, 'No sign-ups yet.'),
 
-    state.walkInFor === slot.id
+    !full && (state.walkInFor === slot.id
       ? walkInRow(slot)
       : h('button', {
         className: 'button small',
@@ -313,7 +315,7 @@ function slotCard(slot) {
           render();
           document.querySelector('.walkin input').focus();
         },
-      }, '+ Add Walk-in'));
+      }, '+ Add Walk-in')));
 }
 
 function renderRoster() {

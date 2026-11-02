@@ -1,3 +1,10 @@
+@font-face { font-family: 'Roboto'; font-weight: 400; font-display: swap; src: url('fonts/roboto-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Roboto'; font-weight: 500; font-display: swap; src: url('fonts/roboto-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Roboto'; font-weight: 700; font-display: swap; src: url('fonts/roboto-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Roboto Mono'; font-weight: 400; font-display: swap; src: url('fonts/roboto-mono-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Roboto Mono'; font-weight: 500; font-display: swap; src: url('fonts/roboto-mono-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Roboto Mono'; font-weight: 700; font-display: swap; src: url('fonts/roboto-mono-latin-700-normal.woff2') format('woff2'); }
+
 :root {
   --black: #000000;
   --white: #ffffff;
@@ -161,8 +168,8 @@ select {
 
 @media (min-width: 720px) {
   .container { padding-top: 40px; }
-  .slot-fields { grid-template-columns: 150px 110px 110px minmax(0, 1fr) 90px auto; }
-  .slot-edit .slot-fields { grid-template-columns: 150px 110px 110px minmax(0, 1fr) 90px; }
+  .slot-fields { grid-template-columns: 150px 110px 110px minmax(0, 1fr) 100px auto; }
+  .slot-edit .slot-fields { grid-template-columns: 150px 110px 110px minmax(0, 1fr); }
   .walkin { grid-template-columns: 1fr 1.3fr 1.6fr auto; align-items: center; }
   .walkin .error { grid-column: 1 / -1; }
   .participant { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; }

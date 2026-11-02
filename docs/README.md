@@ -44,12 +44,13 @@ GitHub turns off scheduled workflows after 60 days without repository activity. 
 
 ## Running the study
 
-- **Slots:** add them one at a time, then copy a whole day with **Duplicate day to next week**. Copies keep room and capacity, but not group, condition or notes.
-- **Group and condition:** one slot holds one group. Set the anonymous Group ID and condition (`2P` or `3P`) on the slot card.
-- **Quota:** a group counts once its slot has a condition and at least that many participants marked **Completed** (2 for `2P`, 3 for `3P`).
+- **Slots:** choose a condition when you add a slot, then copy a whole day with **Duplicate day to next week**. Copies keep room and condition, but not Group ID or notes.
+- **Condition sets the seats:** a `2P` slot takes exactly 2 people and a `3P` slot exactly 3. There is no overbooking, and the public page never shows which is which. Changing a slot's condition does not remove anyone already in it.
+- **Group ID:** one slot holds one group. Set the anonymous Group ID on the slot card.
+- **Quota:** a group counts once its slot has all its seats marked **Completed** (2 for `2P`, 3 for `3P`).
 - **Seats:** only `booked` and `confirmed` hold a public seat. A slot leaves the public list when full and returns when someone cancels.
 - **One participation per person:** an email or phone number cannot book while it has a `booked`, `confirmed` or `completed` record. People who cancelled or were marked no-show can book again.
-- **Walk-ins:** they are saved as `confirmed` and may exceed capacity, because you are deciding in person.
+- **Walk-ins:** they are saved as `confirmed` and need a free seat. If someone does not turn up, mark them **No-Show** first; the **+ Add Walk-in** button then appears.
 - **Do not store experimental data here.** While contact details exist, the Group ID links people to their group, so treat any dataset using that ID as pseudonymised until the contact details are deleted.
 
 ## Deleting contact details

@@ -10,15 +10,33 @@ create table if not exists public.slots (
   start_time timestamptz not null,
   end_time   timestamptz not null,
   room       text not null default 'Lab Room',
-  capacity   int  not null default 3 check (capacity > 0),
   is_active  boolean not null default true,
   notes      text,
-  -- One slot runs one group. These two are set by the researcher, never public.
+  -- One slot runs one group. These are set by the researcher, never public.
   group_id   text unique,
-  condition  text check (condition in ('2P', '3P')),
+  condition  text not null check (condition in ('2P', '3P')),
+  -- No overbooking: a slot seats exactly its group, so capacity cannot drift from condition.
+  capacity   int generated always as (case condition when '2P' then 2 else 3 end) stored,
   created_at timestamptz default now(),
   check (end_time > start_time)
 );
+
+-- Upgrades a database created when capacity was set by hand. Slots with no
+-- condition yet become 3P unless their capacity was 2.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'slots'
+               and column_name = 'capacity' and is_generated = 'NEVER') then
+    update public.slots set condition = case when capacity = 2 then '2P' else '3P' end
+      where condition is null;
+    alter table public.slots drop column capacity;
+    alter table public.slots alter column condition set not null;
+    alter table public.slots
+      add column capacity int generated always as (case condition when '2P' then 2 else 3 end) stored;
+  end if;
+end;
+$$;
 
 create table if not exists public.signups (
   id           uuid primary key default gen_random_uuid(),

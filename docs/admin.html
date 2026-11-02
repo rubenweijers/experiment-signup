@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.supabase.co https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; font-src 'self'; connect-src https://*.supabase.co https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
   <title>Researcher admin</title>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="admin.js"></script>
 </head>
@@ -46,10 +44,11 @@
           <label class="field">Start <input name="start" type="time" required></label>
           <label class="field">End <input name="end" type="time" required></label>
           <label class="field">Room <input name="room" required></label>
-          <label class="field">Capacity
-            <select name="capacity">
-              <option value="3" selected>3</option>
-              <option value="4">4</option>
+          <label class="field">Condition
+            <select name="condition" required>
+              <option value="" selected>—</option>
+              <option value="2P">2P</option>
+              <option value="3P">3P</option>
             </select>
           </label>
           <button class="button primary" type="submit">Add slot</button>
