@@ -1,11 +1,8 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm';
-import { DEFAULT_COUNTRY_CODE, SUPABASE_ANON_KEY, SUPABASE_URL, TIMEZONE } from './config.js';
+import { SUPABASE_ANON_KEY, SUPABASE_URL, TIMEZONE } from './config.js';
 
 export const isConfigured = !SUPABASE_URL.includes('YOUR-PROJECT-REF');
 export const sb = isConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
-const COUNTRY_CODES = ['+31', '+32', '+49', '+33', '+44', '+34', '+39', '+351', '+30', '+48', '+40',
-  '+90', '+1', '+86', '+91', '+62', '+55'];
 
 // Builds DOM with text nodes only. Names come from a public form and end up on the
 // admin page, so user data must never pass through innerHTML.
@@ -65,19 +62,4 @@ export function groupByDay(slots) {
     days.set(day, [...(days.get(day) ?? []), slot]);
   }
   return [...days.values()];
-}
-
-export function countrySelect(name) {
-  return h('select', { name, 'aria-label': 'Country code', value: DEFAULT_COUNTRY_CODE },
-    [...new Set([DEFAULT_COUNTRY_CODE, ...COUNTRY_CODES])].map((code) => h('option', { value: code }, code)));
-}
-
-// A number typed with '+' or '00' overrides the selected country code. Returns null if invalid.
-export function toE164(raw, countryCode) {
-  const compact = raw.replace(/[\s().-]/g, '');
-  let phone;
-  if (compact.startsWith('+')) phone = compact;
-  else if (compact.startsWith('00')) phone = `+${compact.slice(2)}`;
-  else phone = countryCode + compact.replace(/^0/, '');
-  return /^\+[1-9]\d{7,14}$/.test(phone) ? phone : null;
 }

@@ -1,14 +1,14 @@
 import { COMPENSATION_LABEL, CONTACT_EMAIL, DURATION_LABEL, LOCATION_LABEL, STUDY_TITLE } from './config.js';
-import { countrySelect, fmtDay, fmtRange, groupByDay, h, isConfigured, sb, toE164 } from './shared.js';
+import { fmtDay, fmtRange, groupByDay, h, isConfigured, sb } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
 
 const BOOKING_ERRORS = {
   SLOT_FULL: 'That timeslot has just been taken. Please choose another one.',
   SLOT_UNAVAILABLE: 'That timeslot is no longer available. Please choose another one.',
-  ALREADY_BOOKED: 'This email or phone number already has a booking, or has already taken part in this study. Each person can take part once.',
+  ALREADY_BOOKED: 'This email already has a booking, or has already taken part in this study. Each person can take part once.',
   TOO_MANY_REQUESTS: 'A booking was just made from this browser. Please wait a minute and try again.',
-  INVALID_INPUT: 'Please check your name, email and phone number.',
+  INVALID_INPUT: 'Please check your name and email.',
 };
 const CANCEL_ERRORS = {
   INVALID_TOKEN: 'This cancellation link is not valid.',
@@ -16,7 +16,6 @@ const CANCEL_ERRORS = {
 };
 
 let selectedSlot = null;
-const countryCode = countrySelect('country_code');
 
 function show(view) {
   for (const id of ['view-booking', 'view-confirm', 'view-cancel']) $(id).hidden = id !== view;
@@ -74,12 +73,6 @@ async function loadSlots(notice = '') {
       })))));
 }
 
-function updatePhonePreview() {
-  const raw = $('phone').value;
-  const phone = toE164(raw, countryCode.value);
-  $('phone-preview').textContent = !raw ? '' : phone ? `Saved as ${phone}` : 'Enter a complete phone number';
-}
-
 // A random token per browser, not a device fingerprint. Only used for the booking cooldown.
 function clientToken() {
   try {
@@ -99,12 +92,10 @@ async function submitBooking(event) {
   const form = event.target;
   const firstName = form.first_name.value.trim();
   const email = form.email.value.trim();
-  const phone = toE164(form.phone.value, countryCode.value);
 
   let problem = '';
   if (!firstName) problem = 'Please enter your first name.';
   else if (!email || !form.email.checkValidity()) problem = 'Please enter a valid email address.';
-  else if (!phone) problem = 'Please enter a complete WhatsApp number.';
   else if (!form.consent.checked) problem = 'Please tick the consent box to book a timeslot.';
   showError($('book-error'), problem);
   if (problem) return;
@@ -114,7 +105,6 @@ async function submitBooking(event) {
     p_slot_id: selectedSlot.id,
     p_first_name: firstName,
     p_email: email,
-    p_phone: phone,
     p_client_hash: clientToken(),
   });
   $('book-submit').disabled = false;
@@ -250,10 +240,7 @@ if (!isConfigured) {
     startCancelView(cancelToken);
   } else {
     show('view-booking');
-    $('phone-row').prepend(countryCode);
     for (const id of ['eligible-student', 'eligible-new']) $(id).addEventListener('change', updateEligibility);
-    $('phone').addEventListener('input', updatePhonePreview);
-    countryCode.addEventListener('change', updatePhonePreview);
     $('book-form').addEventListener('submit', submitBooking);
     loadSlots();
   }

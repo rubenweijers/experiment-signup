@@ -1,5 +1,5 @@
 import { COMPENSATION_LABEL, DEFAULT_ROOM, DEFAULT_SLOT_MINUTES, QUOTA_PER_CONDITION, STUDY_TITLE } from './config.js';
-import { countrySelect, fmtDay, fmtLongDay, fmtRange, groupByDay, h, isConfigured, localParts, sb, toE164, zonedToIso } from './shared.js';
+import { fmtDay, fmtLongDay, fmtRange, groupByDay, h, isConfigured, localParts, sb, zonedToIso } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -147,7 +147,7 @@ function deleteSlot(slot) {
 
 // --- Roster ---
 
-function whatsappUrl(signup, slot) {
+function reminderEmailUrl(signup, slot) {
   const cancelLink = new URL(`./?cancel=${signup.cancel_token}`, location.href).href;
   const message = [
     `Hi ${signup.first_name}, this is a reminder of your appointment for the ${STUDY_TITLE}.`,
@@ -160,8 +160,11 @@ function whatsappUrl(signup, slot) {
     '',
     'Please reply YES to confirm you are coming.',
     `If you cannot make it, please cancel here: ${cancelLink}`,
-  ].join('\n');
-  return `https://wa.me/${signup.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+  ].join('\r\n');
+  const subject = `Reminder: ${STUDY_TITLE}`;
+  // Encoded because the address comes from a public form and may hold '?' or '&'.
+  const to = encodeURIComponent(signup.email).replace('%40', '@');
+  return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
 }
 
 function seatsTaken(slot) {
@@ -178,16 +181,13 @@ function participantRow(signup, slot) {
   return h('li', { className: `participant status-${signup.status}` },
     h('div', { className: 'participant-info' },
       h('strong', {}, signup.first_name),
-      h('span', { className: 'mono' }, signup.phone),
       h('span', { className: 'email' }, signup.email),
       h('span', { className: 'badge mono' }, signup.status.replace('_', '-').toUpperCase())),
     h('div', { className: 'participant-actions' },
       signup.status !== 'cancelled' && h('a', {
         className: 'button primary small',
-        href: whatsappUrl(signup, slot),
-        target: '_blank',
-        rel: 'noopener noreferrer',
-      }, 'WhatsApp Reminder'),
+        href: reminderEmailUrl(signup, slot),
+      }, 'Email Reminder'),
       STATUS_ACTIONS.map(([status, label]) => h('button', {
         type: 'button',
         className: 'button small',
@@ -197,7 +197,6 @@ function participantRow(signup, slot) {
 }
 
 function walkInRow(slot) {
-  const code = countrySelect('country_code');
   const error = h('p', { className: 'error', role: 'alert', hidden: true });
 
   const submit = async (event) => {
@@ -205,14 +204,13 @@ function walkInRow(slot) {
     const form = event.target;
     const firstName = form.first_name.value.trim();
     const email = form.email.value.trim().toLowerCase();
-    const phone = toE164(form.phone.value, code.value);
-    if (!firstName || !email || !form.email.checkValidity() || !phone) {
-      showError(error, 'Enter a name, a valid email and a complete phone number.');
+    if (!firstName || !email || !form.email.checkValidity()) {
+      showError(error, 'Enter a name and a valid email.');
       return;
     }
     const saved = await write(
-      sb.from('signups').insert({ slot_id: slot.id, first_name: firstName, email, phone, status: 'confirmed' }),
-      'This email or phone number already has an active booking or has taken part already.');
+      sb.from('signups').insert({ slot_id: slot.id, first_name: firstName, email, status: 'confirmed' }),
+      'This email already has an active booking or has taken part already.');
     if (saved) {
       state.walkInFor = null;
       render();
@@ -222,8 +220,6 @@ function walkInRow(slot) {
   return h('form', { className: 'walkin', noValidate: true, onsubmit: submit },
     h('input', { name: 'first_name', placeholder: 'First name', 'aria-label': 'First name' }),
     h('input', { name: 'email', type: 'email', placeholder: 'Email', 'aria-label': 'Email' }),
-    h('div', { className: 'phone-row' }, code,
-      h('input', { name: 'phone', type: 'tel', placeholder: '06 12345678', 'aria-label': 'Phone number' })),
     h('button', { className: 'button primary small', type: 'submit' }, 'Add'),
     error);
 }

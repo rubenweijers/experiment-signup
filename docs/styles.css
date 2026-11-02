@@ -87,11 +87,7 @@ select {
 :focus-visible { outline: 2px solid var(--black); outline-offset: 2px; }
 
 .field { display: block; margin-bottom: 16px; font-weight: 500; font-size: 14px; }
-.field input, .field select, .field .phone-row { margin-top: 4px; font-weight: 400; font-size: 16px; }
-.phone-row { display: flex; gap: 8px; }
-.phone-row select { flex: none; }
-.phone-row input { flex: 1; min-width: 0; }
-.hint { min-height: 20px; margin-top: 4px; font-size: 12px; font-weight: 400; }
+.field input, .field select { margin-top: 4px; font-weight: 400; font-size: 16px; }
 
 .check { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
 .check input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--black); }
@@ -193,7 +189,7 @@ select {
   .container { padding-top: 40px; }
   .slot-fields { grid-template-columns: 150px 140px 140px minmax(0, 1fr) 100px auto; }
   .slot-edit .slot-fields { grid-template-columns: 150px 140px 140px minmax(0, 1fr); }
-  .walkin { grid-template-columns: 1fr 1.3fr 1.6fr auto; align-items: center; }
+  .walkin { grid-template-columns: 1fr 1.6fr auto; align-items: center; }
   .walkin .error { grid-column: 1 / -1; }
   .participant { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; }
   .participant-actions { margin-top: 0; }

@@ -11,7 +11,6 @@ export const LOCATION_LABEL = 'Room 4B-280: IDE, Building 32, TU Delft';
 export const CONTACT_EMAIL = 'r.weijers@tudelft.nl';
 
 export const DEFAULT_ROOM = 'Room 4B-280';
-export const DEFAULT_COUNTRY_CODE = '+31';
 export const DEFAULT_SLOT_MINUTES = 60;
 export const QUOTA_PER_CONDITION = 25;
 

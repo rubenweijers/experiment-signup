@@ -45,7 +45,6 @@ create table if not exists public.signups (
   email        text not null check (
                  char_length(email) <= 254
                  and email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'),
-  phone        text not null check (phone ~ '^\+[1-9][0-9]{7,14}$'),
   status       text not null default 'booked'
                check (status in ('booked', 'confirmed', 'cancelled', 'no_show', 'completed')),
   cancel_token uuid default gen_random_uuid() unique,
@@ -53,14 +52,15 @@ create table if not exists public.signups (
   created_at   timestamptz default now()
 );
 
+-- Upgrades a database created when phone numbers were collected, and deletes them.
+alter table public.signups drop column if exists phone;
+
 create index if not exists signups_slot_id_idx on public.signups (slot_id);
 
 -- A person holds one seat at a time and cannot return after taking part. The
--- indexes close the race that the slot lock in book_slot cannot: two concurrent
+-- index closes the race that the slot lock in book_slot cannot: two concurrent
 -- bookings by the same person on different slots.
 create unique index if not exists signups_one_per_email on public.signups (lower(email))
-  where status in ('booked', 'confirmed', 'completed');
-create unique index if not exists signups_one_per_phone on public.signups (phone)
   where status in ('booked', 'confirmed', 'completed');
 
 -- Supabase Auth lets anyone holding the public key register, and every registered
@@ -119,12 +119,14 @@ as $$
   order by s.start_time, s.id;
 $$;
 
+-- The version that took a phone number.
+drop function if exists public.book_slot(uuid, text, text, text, text);
+
 -- Raises SLOT_UNAVAILABLE, SLOT_FULL, ALREADY_BOOKED, TOO_MANY_REQUESTS or INVALID_INPUT.
 create or replace function public.book_slot(
   p_slot_id     uuid,
   p_first_name  text,
   p_email       text,
-  p_phone       text,
   p_client_hash text default null
 )
 returns jsonb
@@ -135,7 +137,6 @@ as $$
 declare
   v_slot   public.slots%rowtype;
   v_email  text := lower(btrim(p_email));
-  v_phone  text := btrim(p_phone);
   v_token  uuid;
 begin
   if exists (select 1 from public.signups
@@ -151,7 +152,7 @@ begin
   end if;
 
   if exists (select 1 from public.signups
-             where (lower(email) = v_email or phone = v_phone)
+             where lower(email) = v_email
                and status in ('booked', 'confirmed', 'completed')) then
     raise exception 'ALREADY_BOOKED';
   end if;
@@ -161,8 +162,8 @@ begin
     raise exception 'SLOT_FULL';
   end if;
 
-  insert into public.signups (slot_id, first_name, email, phone, client_hash)
-  values (p_slot_id, btrim(p_first_name), v_email, v_phone, p_client_hash)
+  insert into public.signups (slot_id, first_name, email, client_hash)
+  values (p_slot_id, btrim(p_first_name), v_email, p_client_hash)
   returning cancel_token into v_token;
 
   return jsonb_build_object(
@@ -232,11 +233,11 @@ grant select, insert, update, delete on public.slots, public.signups to authenti
 
 revoke all on function public.is_admin() from public, anon, authenticated;
 revoke all on function public.get_available_slots() from public, anon, authenticated;
-revoke all on function public.book_slot(uuid, text, text, text, text) from public, anon, authenticated;
+revoke all on function public.book_slot(uuid, text, text, text) from public, anon, authenticated;
 revoke all on function public.cancel_booking(uuid) from public, anon, authenticated;
 
 grant execute on function public.is_admin() to authenticated;
 -- authenticated too: a researcher signed in on the same origin hits the public page with that role.
 grant execute on function public.get_available_slots() to anon, authenticated;
-grant execute on function public.book_slot(uuid, text, text, text, text) to anon, authenticated;
+grant execute on function public.book_slot(uuid, text, text, text) to anon, authenticated;
 grant execute on function public.cancel_booking(uuid) to anon, authenticated;
