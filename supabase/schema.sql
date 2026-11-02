@@ -245,7 +245,7 @@ $$;
 -- Raises FORBIDDEN. A confirmation and a 24-hour reminder go only to 'booked' people.
 -- The 1-hour reminder also goes to people who have since confirmed; a walk-in has
 -- no confirmation email on record, so gets nothing. Someone who books inside a
--- reminder's window skips that reminder. 24 hours matches REMINDER_WINDOW_HOURS in docs/config.js.
+-- reminder's window skips that reminder.
 create or replace function public.get_pending_emails(p_secret uuid)
 returns table (
   id           uuid,

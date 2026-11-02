@@ -43,12 +43,6 @@ export function fmtDay(iso) {
   return `${weekday}, ${day} ${month}`.toUpperCase();
 }
 
-// 'Monday 12 November'
-export function fmtLongDay(iso) {
-  const { weekday, day, month } = dateParts(iso, 'long', 'long');
-  return `${weekday} ${day} ${month}`;
-}
-
 // '14:00 – 15:00'
 export function fmtRange(startIso, endIso) {
   return `${localParts(startIso)[1]} – ${localParts(endIso)[1]}`;

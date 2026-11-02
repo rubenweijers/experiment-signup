@@ -255,7 +255,6 @@ function startCancelView(token) {
 
 // --- Start ---
 
-document.title = STUDY_TITLE;
 $('study-title').textContent = STUDY_TITLE;
 $('fact-duration').textContent = DURATION_LABEL;
 const [beforeAmount, amount = '', afterAmount = ''] = COMPENSATION_LABEL.split(/(€\d+)/);

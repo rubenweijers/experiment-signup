@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; font-src 'self'; connect-src https://*.supabase.co https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; font-src 'self'; img-src 'self'; connect-src https://*.supabase.co https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
   <title>Researcher admin</title>
+  <link rel="icon" type="image/svg+xml" href="reachy-mini.svg">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="admin.js"></script>
 </head>
@@ -37,11 +38,6 @@
         <div class="quota" id="quota"></div>
       </section>
 
-      <section class="block">
-        <h2 id="reminders-title"></h2>
-        <div id="reminders"></div>
-      </section>
-
       <form class="block" id="add-slot" novalidate>
         <h2>Add a timeslot</h2>
         <div class="slot-fields">
@@ -52,8 +48,8 @@
           <label class="field">Condition
             <select name="condition" required>
               <option value="" selected>—</option>
-              <option value="2P">2P</option>
-              <option value="3P">3P</option>
+              <option value="2P">HHR</option>
+              <option value="3P">HHH</option>
             </select>
           </label>
           <button class="button primary" type="submit">Add slot</button>

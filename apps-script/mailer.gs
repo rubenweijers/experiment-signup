@@ -27,27 +27,29 @@ function appointmentLines(signup) {
   return [
     `Date: ${Utilities.formatDate(start, TIMEZONE, 'EEEE d MMMM')}`,
     `Time: ${Utilities.formatDate(start, TIMEZONE, 'HH:mm')} - ${Utilities.formatDate(end, TIMEZONE, 'HH:mm')}`,
-    `Room: ${signup.room}`,
     `Location: ${LOCATION_LABEL}`,
   ];
 }
 
-// The 24-hour reminder matches reminderEmailUrl in docs/admin.js.
+function cancelLink(signup) {
+  return `${SITE_URL}?cancel=${signup.cancel_token}`;
+}
+
 function buildEmail(signup) {
-  const cancelLink = `${SITE_URL}?cancel=${signup.cancel_token}`;
   if (signup.kind === 'confirmation') {
     return {
       subject: `Booking confirmed: ${STUDY_TITLE}`,
       body: [
-        `Hi ${signup.first_name}, your appointment for the ${STUDY_TITLE} is booked.`,
+        `Hi ${signup.first_name},`,
+        '',
+        `Your appointment for the ${STUDY_TITLE} is booked.`,
         '',
         ...appointmentLines(signup),
         `Duration: ${DURATION_LABEL}`,
         '',
-        `You will receive ${COMPENSATION_LABEL} for taking part.`,
+        `You will receive ${COMPENSATION_LABEL} for participating.`,
         '',
-        `If you cannot make it, please cancel here: ${cancelLink}`,
-        'Opening the link only asks you to confirm, so nothing is cancelled until you do.',
+        `If you cannot make it, please cancel here: ${cancelLink(signup)}`,
       ].join('\n'),
     };
   }
@@ -55,27 +57,41 @@ function buildEmail(signup) {
     return {
       subject: `Starting soon: ${STUDY_TITLE}`,
       body: [
-        `Hi ${signup.first_name}, your appointment for the ${STUDY_TITLE} starts in about 1 hour.`,
+        `Hi ${signup.first_name},`,
+        '',
+        `Your session for the ${STUDY_TITLE} starts in about 1 hour.`,
         '',
         ...appointmentLines(signup),
         '',
-        `If you can no longer make it, please cancel here: ${cancelLink}`,
+        `You will receive ${COMPENSATION_LABEL} for participating.`,
+        '',
+        'See you soon!',
       ].join('\n'),
     };
   }
   return {
     subject: `Reminder: ${STUDY_TITLE}`,
     body: [
-      `Hi ${signup.first_name}, this is a reminder of your appointment for the ${STUDY_TITLE}.`,
+      `Hi ${signup.first_name},`,
+      '',
+      `This is a reminder of your appointment for the ${STUDY_TITLE} tomorrow.`,
       '',
       ...appointmentLines(signup),
       '',
-      `You will receive ${COMPENSATION_LABEL} for taking part.`,
+      `You will receive ${COMPENSATION_LABEL} for participating.`,
       '',
-      'Please reply YES to confirm you are coming.',
-      `If you cannot make it, please cancel here: ${cancelLink}`,
+      `If you cannot make it, please cancel here: ${cancelLink(signup)}`,
     ].join('\n'),
   };
+}
+
+// The HTML version of a body, with the cancel URL behind the word 'here'. The first name comes from a public form, so it is escaped.
+function toHtml(body, signup) {
+  const link = cancelLink(signup);
+  return body
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(`here: ${link}`, `<a href="${link}">here</a>.`)
+    .replace(/\n/g, '<br>');
 }
 
 // An email counts as sent only after it goes out, so anything unsent is retried on the next run.
@@ -90,7 +106,7 @@ function runMailer() {
     }
     const { subject, body } = buildEmail(signup);
     try {
-      MailApp.sendEmail(signup.email, subject, body, { name: STUDY_TITLE, replyTo: CONTACT_EMAIL });
+      MailApp.sendEmail(signup.email, subject, body, { htmlBody: toHtml(body, signup), name: STUDY_TITLE, replyTo: CONTACT_EMAIL });
     } catch (error) {
       console.error(`Could not email signup ${signup.id}: ${error.message}`);
       failed.push(signup.id);
