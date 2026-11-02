@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.supabase.co https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
+  <title>Study sign-up</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main class="container">
+    <header class="masthead">
+      <h1 id="study-title"></h1>
+      <ul class="facts">
+        <li>Duration: <span id="fact-duration"></span></li>
+        <li>Compensation: <span id="fact-compensation"></span></li>
+        <li>Location: <span id="fact-location"></span></li>
+      </ul>
+    </header>
+
+    <div id="view-booking" hidden>
+      <section class="block">
+        <h2>1. Eligibility</h2>
+        <label class="check"><input type="checkbox" id="eligible-student"> <span>I am currently a student</span></label>
+        <label class="check"><input type="checkbox" id="eligible-new"> <span>I have not participated in this study before</span></label>
+      </section>
+
+      <section class="block" id="slots-section" hidden>
+        <h2>2. Choose a timeslot</h2>
+        <div id="slot-list" aria-live="polite"></div>
+      </section>
+
+      <form class="block" id="book-form" hidden novalidate>
+        <h2>3. Your details</h2>
+        <p class="selected mono" id="selected-slot"></p>
+
+        <label class="field">First name
+          <input name="first_name" autocomplete="given-name" maxlength="100" required>
+        </label>
+        <label class="field">University email
+          <input name="email" type="email" autocomplete="email" maxlength="254" required>
+        </label>
+        <div class="field">
+          <label for="phone">WhatsApp phone number</label>
+          <div class="phone-row" id="phone-row">
+            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="06 12345678" required>
+          </div>
+          <p class="hint mono" id="phone-preview" aria-live="polite"></p>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" name="consent" required>
+          <span>I consent to my contact details being stored temporarily to send appointment reminders via WhatsApp/email. All contact details will be permanently deleted upon study completion.</span>
+        </label>
+
+        <p class="notice">Note: Multiple lab sessions run simultaneously. Signing up for the same timeslot as a peer does not guarantee you will be assigned to the same room or condition.</p>
+
+        <p class="error" id="book-error" role="alert" hidden></p>
+        <button class="button primary" type="submit" id="book-submit">Book this timeslot</button>
+      </form>
+    </div>
+
+    <section class="block" id="view-confirm" hidden>
+      <h2>You are booked</h2>
+      <dl class="details mono">
+        <dt>Date</dt><dd id="confirm-date"></dd>
+        <dt>Time</dt><dd id="confirm-time"></dd>
+        <dt>Room</dt><dd id="confirm-room"></dd>
+      </dl>
+      <button class="button primary" type="button" id="download-ics">Download Calendar Invite (.ics)</button>
+      <p class="notice"><strong>Take a screenshot of this page.</strong> Use this personal link if you cannot make it. It will not be shown again:</p>
+      <p class="mono link-line"><a id="confirm-cancel-link"></a></p>
+    </section>
+
+    <section class="block" id="view-cancel" hidden>
+      <h2 id="cancel-title">Cancel your booking</h2>
+      <p id="cancel-text">Your seat will be released for someone else. This cannot be undone.</p>
+      <p class="error" id="cancel-error" role="alert" hidden></p>
+      <button class="button primary cancel-submit" type="button" id="cancel-submit">Yes, cancel my booking</button>
+      <p class="link-line" id="cancel-back" hidden><a href="./">Back to sign-up</a></p>
+    </section>
+
+    <p class="error" id="fatal" role="alert" hidden></p>
+
+    <footer class="footer">
+      Your details are used only to manage your appointment and are visible only to the research team.
+      To withdraw consent or ask about your data, email <a id="contact"></a>.
+    </footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.supabase.co https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
+  <title>Researcher admin</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="admin.js"></script>
+</head>
+<body>
+  <main class="container wide">
+    <form class="block login" id="login-form" hidden>
+      <h1>Researcher sign-in</h1>
+      <label class="field">Email
+        <input name="email" type="email" autocomplete="username" required>
+      </label>
+      <label class="field">Password
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <p class="error" id="login-error" role="alert" hidden></p>
+      <button class="button primary" type="submit">Sign in</button>
+    </form>
+
+    <div id="dashboard" hidden>
+      <header class="admin-head">
+        <h1 id="admin-title"></h1>
+        <button class="button" type="button" id="sign-out">Sign out</button>
+      </header>
+
+      <p class="error" id="admin-error" role="alert" hidden></p>
+
+      <section class="block" aria-label="Quota">
+        <h2>Completed groups</h2>
+        <div class="quota" id="quota"></div>
+      </section>
+
+      <form class="block" id="add-slot" novalidate>
+        <h2>Add a timeslot</h2>
+        <div class="slot-fields">
+          <label class="field">Date <input name="date" type="date" required></label>
+          <label class="field">Start <input name="start" type="time" required></label>
+          <label class="field">End <input name="end" type="time" required></label>
+          <label class="field">Room <input name="room" required></label>
+          <label class="field">Capacity
+            <select name="capacity">
+              <option value="3" selected>3</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+          <button class="button primary" type="submit">Add slot</button>
+        </div>
+      </form>
+
+      <section class="block roster-block">
+        <div class="roster-head">
+          <h2>Roster</h2>
+          <label class="check inline"><input type="checkbox" id="show-past"> <span>Show past days</span></label>
+        </div>
+        <div id="roster"></div>
+      </section>
+    </div>
+
+    <p class="error" id="fatal" role="alert" hidden></p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,24 @@
+name: Supabase keep-alive
+
+# Runs a real database query so the free tier never pauses during data collection.
+on:
+  schedule:
+    - cron: '0 8 */3 * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query the public slots RPC
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          curl --fail --silent --show-error --output /dev/null \
+            --request POST "$SUPABASE_URL/rest/v1/rpc/get_available_slots" \
+            --header "apikey: $SUPABASE_ANON_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{}'
