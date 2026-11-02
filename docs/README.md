@@ -44,7 +44,7 @@ GitHub turns off scheduled workflows after 60 days without repository activity. 
 
 ## 6. Turn on automatic emails
 
-Confirmations and reminders go out from a dedicated Gmail account, through [`../apps-script/mailer.gs`](../apps-script/mailer.gs). Every 5 minutes it fetches who is due, emails them and marks them as sent. Replies go to `CONTACT_EMAIL`.
+Confirmations and reminders go out from a dedicated Gmail account, through [`../apps-script/mailer.gs`](../apps-script/mailer.gs). Every minute it fetches who is due, emails them and marks them as sent. Replies go to `CONTACT_EMAIL`.
 
 1. Create the Gmail account and turn on 2-Step Verification. Keep the name neutral: it must not reveal the conditions.
 2. Run the current `schema.sql` in the **SQL Editor**, then get the mailer secret: `select secret from public.mailer_secret;`
@@ -71,8 +71,8 @@ To stop all emails, delete the trigger under **Triggers** in the Apps Script pro
 - **Seats:** only `booked` and `confirmed` hold a public seat. A slot leaves the public list when full and returns when someone cancels.
 - **One participation per person:** an email address cannot book while it has a `booked`, `confirmed` or `completed` record. People who cancelled or were marked no-show can book again. Someone using a different address can get past this check.
 - **Walk-ins:** they are saved as `confirmed` and need a free seat. If someone does not turn up, mark them **No-Show** first; the **+ Add Walk-in** button then appears.
-- **Reminders:** the **Reminders** section lists everyone with a session in the next 48 hours (`REMINDER_WINDOW_HOURS`) who is still `booked`. **Email Reminder** opens a draft in your mail app and marks the person as reminded; click **Not Sent** if you close the draft without sending. When someone replies YES, click **Confirmed** and they leave the list.
-- **Automatic emails:** each person gets a confirmation within about 5 minutes of booking, and a reminder when their session is 48 hours away. Someone who books inside those 48 hours gets only the confirmation, so they stay in the **Reminders** section to handle by hand. Automatic reminders are marked as reminded like manual ones. **CONFIRMATION NOT SENT** on a participant that lasts more than a few minutes means the mailer is failing: check **Executions** in the Apps Script project. Google accepts mistyped addresses, so a bounce only shows up in the Gmail inbox.
+- **Reminders:** the **Reminders** section lists everyone with a session in the next 24 hours (`REMINDER_WINDOW_HOURS`) who is still `booked`. **Email Reminder** opens a draft in your mail app and marks the person as reminded; click **Not Sent** if you close the draft without sending. When someone replies YES, click **Confirmed** and they leave the list.
+- **Automatic emails:** each person gets a confirmation within about a minute of booking, a reminder 24 hours before their session asking them to reply YES, and a short reminder 1 hour before it. Someone who books inside 24 hours skips the first reminder, so they stay in the **Reminders** section to handle by hand, and someone who books inside 1 hour gets only the confirmation. The 24-hour reminder is marked as reminded like a manual one, and goes only to people still `booked`. The 1-hour reminder also goes to people who have confirmed, but not to walk-ins. **CONFIRMATION NOT SENT** on a participant that lasts more than a few minutes means the mailer is failing: check **Executions** in the Apps Script project. Google accepts mistyped addresses, so a bounce only shows up in the Gmail inbox.
 - **Do not store experimental data here.** While contact details exist, the Group ID links people to their group, so treat any dataset using that ID as pseudonymised until the contact details are deleted.
 
 ## Deleting contact details

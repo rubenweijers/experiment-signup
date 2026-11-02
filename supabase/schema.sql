@@ -56,6 +56,7 @@ create table if not exists public.signups (
 
 alter table public.signups add column if not exists reminded_at timestamptz;
 alter table public.signups add column if not exists confirmation_sent_at timestamptz;
+alter table public.signups add column if not exists final_reminded_at timestamptz;
 
 -- Upgrades a database created when phone numbers were collected, and deletes them.
 alter table public.signups drop column if exists phone;
@@ -241,9 +242,10 @@ $$;
 -- Mailer RPCs
 -- ---------------------------------------------------------------------------
 
--- Raises FORBIDDEN. Only 'booked' people are emailed, so walk-ins and people
--- already marked confirmed get nothing. Someone who books inside the reminder
--- window gets only the confirmation. 48 hours matches REMINDER_WINDOW_HOURS in docs/config.js.
+-- Raises FORBIDDEN. A confirmation and a 24-hour reminder go only to 'booked' people.
+-- The 1-hour reminder also goes to people who have since confirmed; a walk-in has
+-- no confirmation email on record, so gets nothing. Someone who books inside a
+-- reminder's window skips that reminder. 24 hours matches REMINDER_WINDOW_HOURS in docs/config.js.
 create or replace function public.get_pending_emails(p_secret uuid)
 returns table (
   id           uuid,
@@ -267,16 +269,28 @@ begin
 
   return query
     select su.id,
-           case when su.confirmation_sent_at is null then 'confirmation' else 'reminder' end,
+           case
+             when su.confirmation_sent_at is null then 'confirmation'
+             when s.start_time <= now() + interval '1 hour' then 'final_reminder'
+             else 'reminder'
+           end,
            su.first_name, su.email, su.cancel_token, s.start_time, s.end_time, s.room
     from public.signups su
     join public.slots s on s.id = su.slot_id
-    where su.status = 'booked'
-      and s.start_time > now()
-      and (su.confirmation_sent_at is null
-           or (su.reminded_at is null
-               and s.start_time <= now() + interval '48 hours'
-               and su.created_at < s.start_time - interval '48 hours'))
+    where s.start_time > now()
+      and (
+        (su.status = 'booked' and su.confirmation_sent_at is null)
+        or (su.status = 'booked'
+            and su.confirmation_sent_at is not null
+            and su.reminded_at is null
+            and s.start_time > now() + interval '1 hour'
+            and s.start_time <= now() + interval '24 hours'
+            and su.created_at < s.start_time - interval '24 hours')
+        or (su.status in ('booked', 'confirmed')
+            and su.confirmation_sent_at is not null
+            and su.final_reminded_at is null
+            and s.start_time <= now() + interval '1 hour'
+            and su.created_at < s.start_time - interval '1 hour'))
     order by s.start_time, su.created_at;
 end;
 $$;
@@ -295,7 +309,8 @@ begin
 
   update public.signups su
   set confirmation_sent_at = case when p_kind = 'confirmation' then now() else su.confirmation_sent_at end,
-      reminded_at          = case when p_kind = 'reminder' then now() else su.reminded_at end
+      reminded_at          = case when p_kind = 'reminder' then now() else su.reminded_at end,
+      final_reminded_at    = case when p_kind = 'final_reminder' then now() else su.final_reminded_at end
   where su.id = p_signup_id;
 end;
 $$;

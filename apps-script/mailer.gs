@@ -32,7 +32,7 @@ function appointmentLines(signup) {
   ];
 }
 
-// The reminder matches reminderEmailUrl in docs/admin.js.
+// The 24-hour reminder matches reminderEmailUrl in docs/admin.js.
 function buildEmail(signup) {
   const cancelLink = `${SITE_URL}?cancel=${signup.cancel_token}`;
   if (signup.kind === 'confirmation') {
@@ -48,6 +48,18 @@ function buildEmail(signup) {
         '',
         `If you cannot make it, please cancel here: ${cancelLink}`,
         'Opening the link only asks you to confirm, so nothing is cancelled until you do.',
+      ].join('\n'),
+    };
+  }
+  if (signup.kind === 'final_reminder') {
+    return {
+      subject: `Starting soon: ${STUDY_TITLE}`,
+      body: [
+        `Hi ${signup.first_name}, your appointment for the ${STUDY_TITLE} starts in about 1 hour.`,
+        '',
+        ...appointmentLines(signup),
+        '',
+        `If you can no longer make it, please cancel here: ${cancelLink}`,
       ].join('\n'),
     };
   }
@@ -92,5 +104,5 @@ function runMailer() {
 // Run once by hand. Re-running replaces the trigger instead of adding a second one.
 function installTrigger() {
   ScriptApp.getProjectTriggers().forEach((trigger) => ScriptApp.deleteTrigger(trigger));
-  ScriptApp.newTrigger('runMailer').timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger('runMailer').timeBased().everyMinutes(1).create();
 }

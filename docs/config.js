@@ -13,7 +13,7 @@ export const CONTACT_EMAIL = 'r.weijers@tudelft.nl';
 export const DEFAULT_ROOM = 'Room 4B-280';
 export const DEFAULT_SLOT_MINUTES = 60;
 export const QUOTA_PER_CONDITION = 25;
-export const REMINDER_WINDOW_HOURS = 48;
+export const REMINDER_WINDOW_HOURS = 24;
 
 // All times are shown and entered in the lab's timezone, whatever the viewer's device says.
 export const TIMEZONE = 'Europe/Amsterdam';
