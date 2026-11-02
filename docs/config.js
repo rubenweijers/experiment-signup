@@ -5,10 +5,10 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 // Shown to participants. Keep the title neutral: it must not reveal a condition.
 export const STUDY_TITLE = 'Group Design Study';
-export const DURATION_LABEL = '~45 mins';
-export const COMPENSATION_LABEL = '€20';
-export const LOCATION_LABEL = '[Campus Building]';
-export const CONTACT_EMAIL = 'researcher@university.example';
+export const DURATION_LABEL = '~60 mins';
+export const COMPENSATION_LABEL = '€20 in cash';
+export const LOCATION_LABEL = 'Room 4B-280: IDE, Building 32, TU Delft';
+export const CONTACT_EMAIL = 'r.weijers@tudelft.nl';
 
 export const DEFAULT_ROOM = 'Lab Room';
 export const DEFAULT_COUNTRY_CODE = '+31';
