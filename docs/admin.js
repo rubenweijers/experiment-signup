@@ -204,17 +204,28 @@ function seatsTaken(slot) {
   return slot.signups.filter((s) => SEAT_TAKEN.has(s.status)).length;
 }
 
+function sameEmail(a, b) {
+  return a.email.toLowerCase() === b.email.toLowerCase();
+}
+
+// The other session this person has a place in, if any.
+function confirmedElsewhere(signup, slot) {
+  return state.slots.find((s) => s.id !== slot.id
+    && s.signups.some((other) => SEAT_TAKEN.has(other.status) && sameEmail(other, signup)));
+}
+
 function otherSignups(signup, slot) {
   return state.slots
     .filter((s) => s.id !== slot.id)
     .flatMap((s) => s.signups)
-    .filter((s) => s.status === 'booked' && s.email.toLowerCase() === signup.email.toLowerCase())
+    .filter((s) => s.status === 'booked' && sameEmail(s, signup))
     .length;
 }
 
 function participantRow(signup, slot) {
   // Someone without a seat cannot be put back into a full slot.
   const noSeatFree = !SEAT_TAKEN.has(signup.status) && seatsTaken(slot) >= slot.capacity;
+  const elsewhere = !SEAT_TAKEN.has(signup.status) && confirmedElsewhere(signup, slot);
   const setStatus = (status) => write(
     sb.from('signups').update({ status }).eq('id', signup.id),
     'This person already has another active booking or has taken part already.');
@@ -231,13 +242,14 @@ function participantRow(signup, slot) {
           h('span', {}, 'Invite')),
       h('strong', {}, signup.first_name),
       h('span', { className: 'email' }, signup.email),
-      signup.status !== 'booked' && h('span', { className: 'badge mono' }, signup.status.replace('_', '-').toUpperCase()),
+      signup.status !== 'booked' && h('span', { className: `badge mono${signup.status === 'confirmed' ? ' solid' : ''}` }, signup.status.replace('_', '-').toUpperCase()),
+      elsewhere && h('span', { className: 'badge mono solid' }, `CONFIRMED FOR ${fmtDay(elsewhere.start_time)} ${fmtRange(elsewhere.start_time, elsewhere.end_time)}`),
       signup.session_confirmed_at
         && h('span', { className: 'badge mono' }, signup.session_confirmation_sent_at ? 'CONFIRMATION EMAILED' : 'CONFIRMATION EMAIL PENDING'),
       remindedBadge(signup),
       signup.status === 'booked' && otherSignups(signup, slot) > 0
         && h('span', { className: 'badge mono' }, `ALSO IN ${otherSignups(signup, slot)} OTHER`),
-      signup.released_at && h('span', { className: 'badge mono' }, 'RELEASED: IN ANOTHER SESSION'),
+      signup.released_at && !elsewhere && h('span', { className: 'badge mono' }, 'RELEASED: IN ANOTHER SESSION'),
       signup.status === 'cancelled' && signup.session_cancelled_at
         && h('span', { className: 'badge mono' }, signup.cancellation_sent_at ? 'CANCELLATION EMAILED' : 'CANCELLATION EMAIL PENDING')),
     h('div', { className: 'participant-actions' },
@@ -344,7 +356,7 @@ function slotCard(slot) {
         h('span', { className: 'mono strong' }, fmtRange(slot.start_time, slot.end_time)),
         h('span', {}, slot.room),
         h('span', { className: 'badge mono' }, `${seatHolders(slot).length}/${SIGNUP_LIMIT} SIGNED UP`),
-        h('span', { className: `badge mono${full ? ' solid' : ''}` }, `${seats}/${slot.capacity} INVITED`),
+        h('span', { className: `badge mono${full ? ' solid' : ''}` }, `${seats}/${slot.capacity} CONFIRMED`),
         running && h('span', { className: 'badge mono solid' }, 'NOW'),
         !slot.is_active && h('span', { className: 'badge mono' }, 'CLOSED')),
       h('div', { className: 'button-row' },

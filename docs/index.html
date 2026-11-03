@@ -14,7 +14,7 @@
   <main class="container">
     <header class="masthead">
       <h1 id="study-title"></h1>
-      <p>Work with other participants on a short design task. The session will be audio recorded.</p>
+      <p>Work with other participants on a short design task. The session will be audio and video recorded.</p>
       <ul class="facts">
         <li>Duration: <span id="fact-duration"></span></li>
         <li>Compensation: <span id="fact-compensation"></span></li>
@@ -57,10 +57,11 @@
     </div>
 
     <section class="block" id="view-confirm" hidden>
-      <h2>Sign-up received</h2>
+      <h2 id="confirm-title">Sign-up received</h2>
       <dl class="details mono" id="confirm-sessions"></dl>
-      <p class="notice"><strong>This is not a confirmation yet.</strong> Each session has limited places and needs a full group. We will email you if you have a place, so please keep these times free until then.</p>
-      <p>You will get an email with these times and their cancellation links within a few minutes. If it does not arrive, check your spam folder.</p>
+      <p class="notice" id="confirm-provisional"><strong>This is not a confirmation yet.</strong> Each session has limited places and needs a full group. We will email you if you have a place, so please keep these times free until then.</p>
+      <p class="notice" id="confirm-confirmed" hidden><strong>Your session is confirmed.</strong> Your group is full, so please keep this time free. Any other times you selected have been released.</p>
+      <p>You will get an email with the details and a cancellation link within a few minutes. If it does not arrive, check your spam folder.</p>
     </section>
 
     <section class="block" id="view-cancel" hidden>

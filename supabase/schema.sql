@@ -146,12 +146,36 @@ as $$
   order by s.start_time, s.id;
 $$;
 
+-- Moves these sign-ups into their session and releases the same people's sign-ups for
+-- other sessions, without an email, because the session confirmation already says so.
+-- Only book_slots and confirm_session call this; no API role can.
+create or replace function public.confirm_signups(p_slot_id uuid, p_signup_ids uuid[])
+returns void
+language plpgsql
+set search_path = ''
+as $$
+begin
+  update public.signups su
+  set status = 'confirmed', session_confirmed_at = now()
+  where su.id = any (p_signup_ids);
+
+  update public.signups other
+  set status = 'cancelled', released_at = now()
+  where other.status = 'booked'
+    and other.slot_id <> p_slot_id
+    and lower(other.email) in (select lower(su.email) from public.signups su
+                               where su.slot_id = p_slot_id and su.status = 'confirmed');
+end;
+$$;
+
 -- The versions that took a phone number and a single slot.
 drop function if exists public.book_slot(uuid, text, text, text, text);
 drop function if exists public.book_slot(uuid, text, text, text);
 
 -- Raises SLOT_UNAVAILABLE, SLOT_FULL, ALREADY_SIGNED_UP, ALREADY_BOOKED, TOO_MANY_REQUESTS
--- or INVALID_INPUT. All the sign-ups are saved, or none of them.
+-- or INVALID_INPUT. All the sign-ups are saved, or none of them. A sign-up that fills a
+-- group confirms that group at once, earliest session first; the releases that follow mean
+-- nobody is confirmed twice. Returns each sign-up with the status it ended up with.
 create or replace function public.book_slots(
   p_slot_ids    uuid[],
   p_first_name  text,
@@ -168,7 +192,10 @@ declare
   v_slot_id  uuid;
   v_email    text := lower(btrim(p_email));
   v_token    uuid;
-  v_bookings jsonb := '[]'::jsonb;
+  v_tokens   uuid[] := '{}';
+  v_open     int;
+  v_group    uuid[];
+  v_bookings jsonb;
 begin
   if coalesce(cardinality(p_slot_ids), 0) = 0 then
     raise exception 'INVALID_INPUT';
@@ -212,13 +239,39 @@ begin
     values (v_slot_id, btrim(p_first_name), v_email, p_client_hash)
     returning cancel_token into v_token;
 
-    v_bookings := v_bookings || jsonb_build_object(
-      'start_time',   v_slot.start_time,
-      'end_time',     v_slot.end_time,
-      'room',         v_slot.room,
-      'cancel_token', v_token
-    );
+    v_tokens := v_tokens || v_token;
   end loop;
+
+  for v_slot in select s.* from public.slots s where s.id = any (p_slot_ids) order by s.start_time loop
+    select v_slot.capacity - count(*) into v_open from public.signups su
+    where su.slot_id = v_slot.id and su.status = 'confirmed';
+
+    -- Skips anyone the researcher already placed in another session.
+    select array_agg(waiting.id) into v_group
+    from (select su.id from public.signups su
+          where su.slot_id = v_slot.id
+            and su.status = 'booked'
+            and not exists (select 1 from public.signups other
+                            where lower(other.email) = lower(su.email)
+                              and other.status in ('confirmed', 'completed'))
+          order by su.created_at, su.id
+          limit greatest(v_open, 0)) waiting;
+
+    if v_open > 0 and cardinality(v_group) = v_open then
+      perform public.confirm_signups(v_slot.id, v_group);
+    end if;
+  end loop;
+
+  select jsonb_agg(jsonb_build_object(
+           'start_time',   s.start_time,
+           'end_time',     s.end_time,
+           'room',         s.room,
+           'cancel_token', su.cancel_token,
+           'status',       su.status) order by s.start_time)
+  into v_bookings
+  from public.signups su
+  join public.slots s on s.id = su.slot_id
+  where su.cancel_token = any (v_tokens);
 
   return v_bookings;
 exception
@@ -312,11 +365,11 @@ $$;
 drop function if exists public.confirm_session(uuid);
 
 -- Raises FORBIDDEN, SLOT_NOT_FOUND, CANNOT_CONFIRM, INVALID_SELECTION or WRONG_GROUP_SIZE.
--- Invites exactly the people who fill the group; the mailer then tells them. Their
--- sign-ups for other sessions give up those seats without an email, because the
--- confirmation already says so. Anyone not invited stays 'booked', as a waiting list.
--- Participants the researcher added are confirmed already, so they count towards the
--- group but get no email.
+-- book_slots confirms a group as it fills, so this is for the cases it never sees: a group
+-- completed by a participant the researcher added, or one that was full before automatic
+-- confirmation existed. Invites exactly the people who fill the group; the mailer then tells
+-- them. Anyone not invited stays 'booked', as a waiting list. Participants the researcher
+-- added are confirmed already, so they count towards the group but get no email.
 create or replace function public.confirm_session(p_slot_id uuid, p_signup_ids uuid[])
 returns void
 language plpgsql
@@ -351,16 +404,7 @@ begin
     raise exception 'WRONG_GROUP_SIZE';
   end if;
 
-  update public.signups su
-  set status = 'confirmed', session_confirmed_at = now()
-  where su.id = any (p_signup_ids);
-
-  update public.signups other
-  set status = 'cancelled', released_at = now()
-  where other.status = 'booked'
-    and other.slot_id <> p_slot_id
-    and lower(other.email) in (select lower(su.email) from public.signups su
-                               where su.slot_id = p_slot_id and su.status = 'confirmed');
+  perform public.confirm_signups(p_slot_id, p_signup_ids);
 end;
 $$;
 
@@ -399,7 +443,7 @@ begin
            case
              when su.status = 'cancelled' then 'session_cancelled'
              when su.session_confirmed_at is not null and su.session_confirmation_sent_at is null then 'session_confirmed'
-             when su.confirmation_sent_at is null then 'confirmation'
+             when su.status = 'booked' and su.confirmation_sent_at is null then 'confirmation'
              when s.start_time <= now() + interval '1 hour' then 'final_reminder'
              else 'reminder'
            end,
@@ -467,6 +511,7 @@ revoke all on function public.book_slots(uuid[], text, text, text) from public, 
 revoke all on function public.cancel_booking(uuid) from public, anon, authenticated;
 revoke all on function public.cancel_session(uuid) from public, anon, authenticated;
 revoke all on function public.confirm_session(uuid, uuid[]) from public, anon, authenticated;
+revoke all on function public.confirm_signups(uuid, uuid[]) from public, anon, authenticated;
 revoke all on function public.get_pending_emails(uuid) from public, anon, authenticated;
 revoke all on function public.mark_email_sent(uuid, uuid, text) from public, anon, authenticated;
 

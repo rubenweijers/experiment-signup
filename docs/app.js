@@ -136,8 +136,11 @@ async function submitBooking(event) {
 }
 
 function showConfirmation(bookings) {
-  const sorted = [...bookings].sort((a, b) => a.start_time.localeCompare(b.start_time));
-  $('confirm-sessions').replaceChildren(...sorted.flatMap((booking) => [
+  const confirmed = bookings.find((booking) => booking.status === 'confirmed');
+  $('confirm-title').textContent = confirmed ? 'Session confirmed' : 'Sign-up received';
+  $('confirm-provisional').hidden = Boolean(confirmed);
+  $('confirm-confirmed').hidden = !confirmed;
+  $('confirm-sessions').replaceChildren(...(confirmed ? [confirmed] : bookings).flatMap((booking) => [
     h('dt', {}, fmtDay(booking.start_time)),
     h('dd', {}, `${fmtRange(booking.start_time, booking.end_time)} | `, h('a', { href: cancelUrl(booking.cancel_token) }, 'Cancel')),
   ]));
