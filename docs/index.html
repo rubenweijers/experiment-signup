@@ -6,7 +6,7 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; font-src 'self'; img-src 'self'; connect-src https://*.supabase.co https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
   <title>Experiment Signup</title>
-  <link rel="icon" type="image/svg+xml" href="reachy-mini.svg">
+  <link rel="icon" type="image/png" href="ok.png">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -14,6 +14,7 @@
   <main class="container">
     <header class="masthead">
       <h1 id="study-title"></h1>
+      <p>Work with other participants on a short design task. The session will be audio recorded.</p>
       <ul class="facts">
         <li>Duration: <span id="fact-duration"></span></li>
         <li>Compensation: <span id="fact-compensation"></span></li>
@@ -24,7 +25,7 @@
     <div id="view-booking" hidden>
       <section class="block">
         <h2>1. Eligibility</h2>
-        <label class="check"><input type="checkbox" id="eligible-student"> <span>I am current or graduated design student</span></label>
+        <label class="check"><input type="checkbox" id="eligible-student"> <span>I am a current or graduated design student</span></label>
         <label class="check"><input type="checkbox" id="eligible-new"> <span>I have not participated in this study before</span></label>
       </section>
 
@@ -82,7 +83,7 @@
 
     <footer class="footer">
       Your details are used only to manage your appointment and are visible only to the research team and, because we send email through Gmail, to Google as our email provider.
-      To withdraw consent or ask about your data, email <a id="contact"></a>.
+      For questions, contact <a id="contact"></a>
     </footer>
   </main>
 </body>
