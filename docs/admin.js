@@ -6,7 +6,6 @@ const $ = (id) => document.getElementById(id);
 const GROUP_SIZE = { '2P': 2, '3P': 3 };
 const CONDITION_LABEL = { '2P': 'HHR Condition', '3P': 'HHH Condition' };
 const STATUS_ACTIONS = [
-  ['booked', 'Booked'],
   ['completed', 'Completed'],
   ['no_show', 'No-Show'],
 ];
@@ -178,7 +177,7 @@ function participantRow(signup, slot) {
     h('div', { className: 'participant-info' },
       h('strong', {}, signup.first_name),
       h('span', { className: 'email' }, signup.email),
-      h('span', { className: 'badge mono' }, signup.status.replace('_', '-').toUpperCase()),
+      signup.status !== 'booked' && h('span', { className: 'badge mono' }, signup.status.replace('_', '-').toUpperCase()),
       remindedBadge(signup),
       signup.status === 'cancelled' && signup.session_cancelled_at
         && h('span', { className: 'badge mono' }, signup.cancellation_sent_at ? 'CANCELLATION EMAILED' : 'CANCELLATION EMAIL PENDING')),
@@ -294,11 +293,6 @@ function slotCard(slot) {
           type: 'button',
           onclick: () => { state.editing = state.editing === slot.id ? null : slot.id; render(); },
         }, 'Edit'),
-        h('button', {
-          className: 'button small',
-          type: 'button',
-          onclick: () => write(sb.from('slots').insert(duplicateRows([slot]))),
-        }, 'Duplicate to next week'),
         // A cancelled session is closed and holds nobody, so there is nothing left to cancel.
         Date.parse(slot.start_time) > now && (slot.is_active || seatHolders(slot).length > 0)
           && h('button', { className: 'button small', type: 'button', onclick: () => cancelSession(slot) }, 'Cancel session'),

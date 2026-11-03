@@ -234,6 +234,8 @@ function showCancelDone(title, text) {
 
 function startCancelView(token) {
   show('view-cancel');
+  document.querySelector('.masthead').hidden = true;
+  document.querySelector('.footer').hidden = true;
   if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(token)) {
     showCancelDone('Invalid link', CANCEL_ERRORS.INVALID_TOKEN);
     return;
@@ -248,8 +250,7 @@ function startCancelView(token) {
       return;
     }
     showError($('cancel-error'), '');
-    showCancelDone('Booking cancelled',
-      `Your seat on ${fmtDay(data.start_time)}, ${fmtRange(data.start_time, data.end_time)} has been released.`);
+    showCancelDone('Booking cancelled', `Your session on ${fmtDay(data.start_time)} has been canceled.`);
   };
 }
 
