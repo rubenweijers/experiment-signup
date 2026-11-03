@@ -6,8 +6,9 @@ const $ = (id) => document.getElementById(id);
 const BOOKING_ERRORS = {
   SLOT_FULL: 'That timeslot has just been taken. Please choose another one.',
   SLOT_UNAVAILABLE: 'That timeslot is no longer available. Please choose another one.',
-  ALREADY_BOOKED: 'This email already has a booking, or has already taken part in this study. Each person can take part once.',
-  TOO_MANY_REQUESTS: 'A booking was just made from this browser. Please wait a minute and try again.',
+  ALREADY_SIGNED_UP: 'This email is already signed up for one of these timeslots. Please check your email, or choose other timeslots.',
+  ALREADY_BOOKED: 'This email already has a confirmed session, or has already taken part in this study. Each person can take part once.',
+  TOO_MANY_REQUESTS: 'A sign-up was just made from this browser. Please wait a minute and try again.',
   INVALID_INPUT: 'Please check your name and email.',
 };
 const CANCEL_ERRORS = {
@@ -15,7 +16,7 @@ const CANCEL_ERRORS = {
   CANNOT_CANCEL: 'This booking can no longer be cancelled because the session has started or finished.',
 };
 
-let selectedSlot = null;
+const selectedSlots = new Map();
 
 function show(view) {
   for (const id of ['view-booking', 'view-confirm', 'view-cancel']) $(id).hidden = id !== view;
@@ -34,18 +35,27 @@ function cancelUrl(token) {
 
 function updateEligibility() {
   $('slots-section').hidden = !($('eligible-student').checked && $('eligible-new').checked);
-  if ($('slots-section').hidden) selectSlot(null);
+  if ($('slots-section').hidden) {
+    selectedSlots.clear();
+    renderSelection();
+  }
 }
 
-function selectSlot(slot) {
-  selectedSlot = slot;
-  $('book-form').hidden = !slot;
+function toggleSlot(slot) {
+  if (!selectedSlots.delete(slot.id)) selectedSlots.set(slot.id, slot);
+  renderSelection();
+}
+
+function renderSelection() {
+  const count = selectedSlots.size;
+  $('book-form').hidden = !count;
   for (const pill of document.querySelectorAll('.pill')) {
-    pill.setAttribute('aria-pressed', String(pill.dataset.id === slot?.id));
+    pill.setAttribute('aria-pressed', String(selectedSlots.has(pill.dataset.id)));
   }
-  if (slot) {
-    $('selected-slot').textContent = `${fmtDay(slot.start_time)} | ${fmtRange(slot.start_time, slot.end_time)}`;
-  }
+  const slots = [...selectedSlots.values()].sort((a, b) => a.start_time.localeCompare(b.start_time));
+  $('selected-slot').replaceChildren(...slots.map((slot) =>
+    h('div', {}, `${fmtDay(slot.start_time)} | ${fmtRange(slot.start_time, slot.end_time)}`)));
+  $('book-submit').textContent = count === 1 ? 'Sign up for this timeslot' : `Sign up for these ${count} timeslots`;
 }
 
 async function loadSlots(notice = '') {
@@ -66,11 +76,16 @@ async function loadSlots(notice = '') {
           type: 'button',
           className: 'pill mono',
           'aria-pressed': 'false',
-          onclick: () => selectSlot(slot),
+          onclick: () => toggleSlot(slot),
         }, `${fmtRange(slot.start_time, slot.end_time)} | AVAILABLE`);
         pill.dataset.id = slot.id;
         return pill;
       })))));
+  // Anything taken since it was selected drops out of the selection.
+  for (const id of selectedSlots.keys()) {
+    if (!data.some((slot) => slot.id === id)) selectedSlots.delete(id);
+  }
+  renderSelection();
 }
 
 // A random token per browser, not a device fingerprint. Only used for the booking cooldown.
@@ -96,13 +111,13 @@ async function submitBooking(event) {
   let problem = '';
   if (!firstName) problem = 'Please enter your first name.';
   else if (!email || !form.email.checkValidity()) problem = 'Please enter a valid email address.';
-  else if (!form.consent.checked) problem = 'Please tick the consent box to book a timeslot.';
+  else if (!form.consent.checked) problem = 'Please tick the consent box to sign up.';
   showError($('book-error'), problem);
   if (problem) return;
 
   $('book-submit').disabled = true;
-  const { data, error } = await sb.rpc('book_slot', {
-    p_slot_id: selectedSlot.id,
+  const { data, error } = await sb.rpc('book_slots', {
+    p_slot_ids: [...selectedSlots.keys()],
     p_first_name: firstName,
     p_email: email,
     p_client_hash: clientToken(),
@@ -112,8 +127,7 @@ async function submitBooking(event) {
   if (!error) {
     showConfirmation(data);
   } else if (error.message === 'SLOT_FULL' || error.message === 'SLOT_UNAVAILABLE') {
-    // The form stays filled in, hidden, for when they pick another slot.
-    selectSlot(null);
+    // The form stays filled in, even if hidden, for when they pick another slot.
     await loadSlots(BOOKING_ERRORS[error.message]);
     $('slots-section').scrollIntoView();
   } else {
@@ -121,106 +135,14 @@ async function submitBooking(event) {
   }
 }
 
-function showConfirmation(booking) {
-  const link = cancelUrl(booking.cancel_token);
-  $('confirm-date').textContent = fmtDay(booking.start_time);
-  $('confirm-time').textContent = fmtRange(booking.start_time, booking.end_time);
-  $('confirm-room').textContent = booking.room;
-  $('confirm-cancel-link').href = link;
-  $('confirm-cancel-link').textContent = link;
-  $('add-outlook').href = outlookUrl(booking);
-  $('add-google').href = googleUrl(booking);
-  $('download-ics').onclick = () => downloadIcs(booking, link);
+function showConfirmation(bookings) {
+  const sorted = [...bookings].sort((a, b) => a.start_time.localeCompare(b.start_time));
+  $('confirm-sessions').replaceChildren(...sorted.flatMap((booking) => [
+    h('dt', {}, fmtDay(booking.start_time)),
+    h('dd', {}, `${fmtRange(booking.start_time, booking.end_time)} | `, h('a', { href: cancelUrl(booking.cancel_token) }, 'Cancel')),
+  ]));
   show('view-confirm');
   scrollTo(0, 0);
-}
-
-// --- Calendar invite ---
-
-function icsText(text) {
-  return text.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
-}
-
-function icsTime(iso) {
-  return new Date(iso).toISOString().replace(/[-:]|\.\d{3}/g, '');
-}
-
-// RFC 5545 limits lines to 75 octets, and room names may hold multi-byte characters.
-function foldIcsLine(line) {
-  const encoder = new TextEncoder();
-  const chunks = [];
-  let chunk = '';
-  let octets = 0;
-  for (const char of line) {
-    const size = encoder.encode(char).length;
-    if (octets + size > 75) {
-      chunks.push(chunk);
-      chunk = ' ';
-      octets = 1;
-    }
-    chunk += char;
-    octets += size;
-  }
-  chunks.push(chunk);
-  return chunks.join('\r\n');
-}
-
-// The label may already name the room.
-function eventLocation(booking) {
-  return LOCATION_LABEL.includes(booking.room) ? LOCATION_LABEL : `${booking.room}, ${LOCATION_LABEL}`;
-}
-
-// These links hand the event to Microsoft or Google, so they leave out the personal cancel link.
-function outlookUrl(booking) {
-  const params = new URLSearchParams({
-    path: '/calendar/action/compose',
-    rru: 'addevent',
-    subject: STUDY_TITLE,
-    startdt: new Date(booking.start_time).toISOString(),
-    enddt: new Date(booking.end_time).toISOString(),
-    location: eventLocation(booking),
-    body: `Compensation: ${COMPENSATION_LABEL}`,
-  });
-  return `https://outlook.office.com/calendar/0/deeplink/compose?${params}`;
-}
-
-function googleUrl(booking) {
-  const params = new URLSearchParams({
-    action: 'TEMPLATE',
-    text: STUDY_TITLE,
-    dates: `${icsTime(booking.start_time)}/${icsTime(booking.end_time)}`,
-    location: eventLocation(booking),
-    details: `Compensation: ${COMPENSATION_LABEL}`,
-  });
-  return `https://calendar.google.com/calendar/render?${params}`;
-}
-
-function downloadIcs(booking, link) {
-  const ics = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Experiment Sign-up//EN',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    'BEGIN:VEVENT',
-    `UID:${booking.cancel_token}@experiment-signup`,
-    `DTSTAMP:${icsTime(new Date().toISOString())}`,
-    `DTSTART:${icsTime(booking.start_time)}`,
-    `DTEND:${icsTime(booking.end_time)}`,
-    `SUMMARY:${icsText(STUDY_TITLE)}`,
-    `LOCATION:${icsText(eventLocation(booking))}`,
-    `DESCRIPTION:${icsText(`Compensation: ${COMPENSATION_LABEL}\nCannot make it? Cancel here: ${link}`)}`,
-    'END:VEVENT',
-    'END:VCALENDAR',
-    '',
-  ].map(foldIcsLine).join('\r\n');
-
-  const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
-  const anchor = h('a', { href: url, download: 'lab-appointment.ics' });
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // --- Cancellation ---
@@ -250,7 +172,7 @@ function startCancelView(token) {
       return;
     }
     showError($('cancel-error'), '');
-    showCancelDone('Booking cancelled', `Your session on ${fmtDay(data.start_time)} has been canceled.`);
+    showCancelDone('Booking cancelled', `Your session on ${fmtDay(data.start_time)}, ${fmtRange(data.start_time, data.end_time)} has been cancelled.`);
   };
 }
 

@@ -1,4 +1,4 @@
-import { DEFAULT_ROOM, DEFAULT_SLOT_MINUTES, QUOTA_PER_CONDITION, STUDY_TITLE } from './config.js';
+import { DEFAULT_ROOM, DEFAULT_SLOT_MINUTES, QUOTA_PER_CONDITION, SIGNUP_LIMIT, STUDY_TITLE } from './config.js';
 import { fmtDay, fmtRange, groupByDay, h, isConfigured, localParts, sb, zonedToIso } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
@@ -9,9 +9,10 @@ const STATUS_ACTIONS = [
   ['completed', 'Completed'],
   ['no_show', 'No-Show'],
 ];
-const SEAT_TAKEN = new Set(['booked', 'confirmed', 'completed']);
+// A place in the group. 'booked' people have only signed up, and a slot takes more of them than it has places.
+const SEAT_TAKEN = new Set(['confirmed', 'completed']);
 
-const state = { slots: [], showPast: false, walkInFor: null, editing: null };
+const state = { slots: [], showPast: false, walkInFor: null, editing: null, invites: new Map() };
 
 function showError(el, message) {
   el.textContent = message;
@@ -156,6 +157,43 @@ function cancelSession(slot) {
   if (confirm(warning)) write(sb.rpc('cancel_session', { p_slot_id: slot.id }));
 }
 
+function waitingList(slot) {
+  return slot.signups
+    .filter((s) => s.status === 'booked')
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+function openPlaces(slot) {
+  return Math.max(0, slot.capacity - seatsTaken(slot));
+}
+
+// First come, first invited, until the researcher ticks someone else.
+function invitees(slot) {
+  const chosen = state.invites.get(slot.id);
+  const waiting = waitingList(slot);
+  return chosen ? waiting.filter((s) => chosen.has(s.id)) : waiting.slice(0, openPlaces(slot));
+}
+
+function toggleInvite(slot, signupId) {
+  const chosen = new Set(invitees(slot).map((s) => s.id));
+  if (!chosen.delete(signupId)) chosen.add(signupId);
+  state.invites.set(slot.id, chosen);
+  render();
+}
+
+async function confirmSession(slot) {
+  const invited = invitees(slot);
+  const names = invited.map((s) => s.first_name).join(', ');
+  if (!confirm(`Invite ${names}? They will be emailed that the session is confirmed, and their other sign-ups are released.`)) return;
+  const saved = await write(
+    sb.rpc('confirm_session', { p_slot_id: slot.id, p_signup_ids: invited.map((s) => s.id) }),
+    'Someone you selected is already confirmed for another session.');
+  if (saved) {
+    state.invites.delete(slot.id);
+    render();
+  }
+}
+
 // --- Roster ---
 
 function remindedBadge(signup) {
@@ -164,6 +202,14 @@ function remindedBadge(signup) {
 
 function seatsTaken(slot) {
   return slot.signups.filter((s) => SEAT_TAKEN.has(s.status)).length;
+}
+
+function otherSignups(signup, slot) {
+  return state.slots
+    .filter((s) => s.id !== slot.id)
+    .flatMap((s) => s.signups)
+    .filter((s) => s.status === 'booked' && s.email.toLowerCase() === signup.email.toLowerCase())
+    .length;
 }
 
 function participantRow(signup, slot) {
@@ -175,10 +221,23 @@ function participantRow(signup, slot) {
 
   return h('li', { className: `participant status-${signup.status}` },
     h('div', { className: 'participant-info' },
+      signup.status === 'booked' && openPlaces(slot) > 0 && Date.parse(slot.start_time) > Date.now()
+        && h('label', { className: 'check inline' },
+          h('input', {
+            type: 'checkbox',
+            checked: invitees(slot).some((s) => s.id === signup.id),
+            onchange: () => toggleInvite(slot, signup.id),
+          }),
+          h('span', {}, 'Invite')),
       h('strong', {}, signup.first_name),
       h('span', { className: 'email' }, signup.email),
       signup.status !== 'booked' && h('span', { className: 'badge mono' }, signup.status.replace('_', '-').toUpperCase()),
+      signup.session_confirmed_at
+        && h('span', { className: 'badge mono' }, signup.session_confirmation_sent_at ? 'CONFIRMATION EMAILED' : 'CONFIRMATION EMAIL PENDING'),
       remindedBadge(signup),
+      signup.status === 'booked' && otherSignups(signup, slot) > 0
+        && h('span', { className: 'badge mono' }, `ALSO IN ${otherSignups(signup, slot)} OTHER`),
+      signup.released_at && h('span', { className: 'badge mono' }, 'RELEASED: IN ANOTHER SESSION'),
       signup.status === 'cancelled' && signup.session_cancelled_at
         && h('span', { className: 'badge mono' }, signup.cancellation_sent_at ? 'CANCELLATION EMAILED' : 'CANCELLATION EMAIL PENDING')),
     h('div', { className: 'participant-actions' },
@@ -284,10 +343,18 @@ function slotCard(slot) {
       h('div', { className: 'slot-title' },
         h('span', { className: 'mono strong' }, fmtRange(slot.start_time, slot.end_time)),
         h('span', {}, slot.room),
-        h('span', { className: `badge mono${full ? ' solid' : ''}` }, `${seats}/${slot.capacity}${full ? ' FULL' : ''}`),
+        h('span', { className: 'badge mono' }, `${seatHolders(slot).length}/${SIGNUP_LIMIT} SIGNED UP`),
+        h('span', { className: `badge mono${full ? ' solid' : ''}` }, `${seats}/${slot.capacity} INVITED`),
         running && h('span', { className: 'badge mono solid' }, 'NOW'),
         !slot.is_active && h('span', { className: 'badge mono' }, 'CLOSED')),
       h('div', { className: 'button-row' },
+        Date.parse(slot.start_time) > now && !full && waitingList(slot).length > 0 && h('button', {
+          className: 'button primary small',
+          type: 'button',
+          disabled: invitees(slot).length !== openPlaces(slot),
+          title: invitees(slot).length !== openPlaces(slot) ? `Tick exactly ${openPlaces(slot)} to invite.` : '',
+          onclick: () => confirmSession(slot),
+        }, `Send confirmation email (${invitees(slot).length}/${openPlaces(slot)})`),
         h('button', {
           className: 'button small',
           type: 'button',

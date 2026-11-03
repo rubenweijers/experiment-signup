@@ -30,7 +30,8 @@
       </section>
 
       <section class="block" id="slots-section" hidden>
-        <h2>2. Choose a timeslot</h2>
+        <h2>2. Choose your timeslots</h2>
+        <p class="hint">Select every time you can make. You will take part once: we will email you if you have a place in one of them.</p>
         <div id="slot-list" aria-live="polite"></div>
       </section>
 
@@ -51,24 +52,15 @@
         </label>
 
         <p class="error" id="book-error" role="alert" hidden></p>
-        <button class="button primary" type="submit" id="book-submit">Book this timeslot</button>
+        <button class="button primary" type="submit" id="book-submit">Sign up for this timeslot</button>
       </form>
     </div>
 
     <section class="block" id="view-confirm" hidden>
-      <h2>You are booked</h2>
-      <dl class="details mono">
-        <dt>Date</dt><dd id="confirm-date"></dd>
-        <dt>Time</dt><dd id="confirm-time"></dd>
-        <dt>Room</dt><dd id="confirm-room"></dd>
-      </dl>
-      <div class="calendar-buttons">
-        <a class="button primary" id="add-outlook" target="_blank" rel="noopener noreferrer">Add to Outlook</a>
-        <a class="button primary" id="add-google" target="_blank" rel="noopener noreferrer">Add to Google Calendar</a>
-        <button class="button" type="button" id="download-ics">Download Calendar File (.ics)</button>
-      </div>
-      <p class="notice"><strong>Can't make it?</strong> Use your personal cancellation link below to give up your seat. Opening it only asks you to confirm, so nothing is cancelled until you do. We will also email you this link within a few minutes, along with your booking details. If it does not arrive, check your spam folder. This page will not be shown again, so copy the link or take a screenshot until you have the email. It is also in the downloaded calendar file.</p>
-      <p class="mono link-line"><a id="confirm-cancel-link"></a></p>
+      <h2>Sign-up received</h2>
+      <dl class="details mono" id="confirm-sessions"></dl>
+      <p class="notice"><strong>This is not a confirmation yet.</strong> Each session has limited places and needs a full group. We will email you if you have a place, so please keep these times free until then.</p>
+      <p>You will get an email with these times and their cancellation links within a few minutes. If it does not arrive, check your spam folder.</p>
     </section>
 
     <section class="block" id="view-cancel" hidden>

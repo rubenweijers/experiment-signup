@@ -1,4 +1,4 @@
-// Sends booking confirmations and reminders from the study's Gmail account.
+// Sends sign-up emails, session confirmations and reminders from the study's Gmail account.
 // Paste into a Google Apps Script project; setup is in docs/README.md, step 6.
 // Apps Script cannot import docs/config.js, so keep these values in step with it.
 const SUPABASE_URL = 'https://ggewamsgudwvpwhtzxdy.supabase.co';
@@ -24,6 +24,13 @@ function rpc(name, params) {
   return response.getContentText() ? JSON.parse(response.getContentText()) : null;
 }
 
+function sessionLine(signup) {
+  const start = new Date(signup.start_time);
+  const end = new Date(signup.end_time);
+  const day = Utilities.formatDate(start, TIMEZONE, 'EEEE d MMMM');
+  return `${day}, ${Utilities.formatDate(start, TIMEZONE, 'HH:mm')} - ${Utilities.formatDate(end, TIMEZONE, 'HH:mm')}`;
+}
+
 function appointmentLines(signup) {
   const start = new Date(signup.start_time);
   const end = new Date(signup.end_time);
@@ -36,6 +43,25 @@ function appointmentLines(signup) {
 
 function cancelLink(signup) {
   return `${SITE_URL}?cancel=${signup.cancel_token}`;
+}
+
+// One email for everything a person signed up for, so it holds only what they need now.
+// The session confirmation carries the location, duration and compensation.
+function buildSignupEmail(group) {
+  const [signup] = group;
+  return {
+    subject: `Sign-up received: ${STUDY_TITLE}`,
+    body: [
+      `Hi ${signup.first_name},`,
+      '',
+      `Thanks for signing up for the ${STUDY_TITLE}. This is not a confirmation yet.`,
+      '',
+      'You signed up for:',
+      ...group.map((s) => `- ${sessionLine(s)} (cancel: ${cancelLink(s)})`),
+      '',
+      'Each session has limited places and needs a full group. We will email you if you have a place, so please keep these times free until then.',
+    ].join('\n'),
+  };
 }
 
 function buildEmail(signup) {
@@ -53,13 +79,13 @@ function buildEmail(signup) {
       ].join('\n'),
     };
   }
-  if (signup.kind === 'confirmation') {
+  if (signup.kind === 'session_confirmed') {
     return {
-      subject: `Booking confirmed: ${STUDY_TITLE}`,
+      subject: `Session confirmed: ${STUDY_TITLE}`,
       body: [
         `Hi ${signup.first_name},`,
         '',
-        `Your appointment for the ${STUDY_TITLE} is booked.`,
+        `Your session for the ${STUDY_TITLE} is confirmed. Any other times you signed up for have been released.`,
         '',
         ...appointmentLines(signup),
         `Duration: ${DURATION_LABEL}`,
@@ -103,12 +129,30 @@ function buildEmail(signup) {
 }
 
 // The HTML version of a body, with the URL behind the word 'here'. The first name comes from a public form, so it is escaped.
-function toHtml(body, signup) {
-  const link = signup.kind === 'session_cancelled' ? SITE_URL : cancelLink(signup);
-  return body
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(`here: ${link}`, `<a href="${link}">here</a>.`)
-    .replace(/\n/g, '<br>');
+function toHtml(body, group) {
+  let html = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  for (const signup of group) {
+    const link = signup.kind === 'session_cancelled' ? SITE_URL : cancelLink(signup);
+    html = html
+      .replace(`here: ${link}`, `<a href="${link}">here</a>.`)
+      .replace(`cancel: ${link}`, `<a href="${link}">cancel</a>`);
+  }
+  return html.replace(/\n/g, '<br>');
+}
+
+// Everyone with a session to attend gets the map; a sign-up is not one yet.
+function hasMap(signup) {
+  return signup.kind !== 'session_cancelled' && signup.kind !== 'confirmation';
+}
+
+// The mailer reads all of one person's sign-up emails in one run, because a booking saves them together.
+function groupEmails(pending) {
+  const groups = new Map();
+  for (const signup of pending) {
+    const key = signup.kind === 'confirmation' ? signup.email.toLowerCase() : signup.id;
+    groups.set(key, [...(groups.get(key) ?? []), signup]);
+  }
+  return [...groups.values()];
 }
 
 // Embedded rather than linked, because mail clients often hide remote images.
@@ -128,17 +172,18 @@ function runMailer() {
   const secret = PropertiesService.getScriptProperties().getProperty('MAILER_SECRET');
   const failed = [];
   const pending = rpc('get_pending_emails', { p_secret: secret });
-  const map = pending.some((signup) => signup.kind !== 'session_cancelled') ? fetchMap() : null;
-  for (const signup of pending) {
+  const map = pending.some(hasMap) ? fetchMap() : null;
+  for (const group of groupEmails(pending)) {
+    const [signup] = group;
     if (MailApp.getRemainingDailyQuota() < 1) {
       console.warn('Daily email quota used up; the rest go out once it resets.');
       break;
     }
-    const { subject, body } = buildEmail(signup);
-    const showMap = map && signup.kind !== 'session_cancelled';
+    const { subject, body } = signup.kind === 'confirmation' ? buildSignupEmail(group) : buildEmail(signup);
+    const showMap = map && hasMap(signup);
     try {
       MailApp.sendEmail(signup.email, subject, `${body}\n\n${SIGNATURE}`, {
-        htmlBody: `${toHtml(body, signup)}${showMap ? MAP_HTML : ''}<br><br>${SIGNATURE.replace(/\n/g, '<br>')}`,
+        htmlBody: `${toHtml(body, group)}${showMap ? MAP_HTML : ''}<br><br>${SIGNATURE.replace(/\n/g, '<br>')}`,
         inlineImages: showMap ? { map } : {},
         name: STUDY_TITLE,
         replyTo: CONTACT_EMAIL,
@@ -148,7 +193,7 @@ function runMailer() {
       failed.push(signup.id);
       continue;
     }
-    rpc('mark_email_sent', { p_secret: secret, p_signup_id: signup.id, p_kind: signup.kind });
+    for (const sent of group) rpc('mark_email_sent', { p_secret: secret, p_signup_id: sent.id, p_kind: sent.kind });
   }
   if (failed.length) throw new Error(`Could not send ${failed.length} email(s); see the log.`);
 }
