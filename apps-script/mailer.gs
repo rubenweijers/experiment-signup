@@ -7,9 +7,12 @@ const SITE_URL = 'https://rubenweijers.github.io/experiment-signup/';
 const STUDY_TITLE = 'Group Design Experiment';
 const DURATION_LABEL = '~60 mins';
 const COMPENSATION_LABEL = '€20 in cash';
-const LOCATION_LABEL = 'Room 4B-280: IDE, Building 32, TU Delft';
+const LOCATION_LABEL = 'Room 4B-280 (Product Evaluation Lab): IDE, Building 32, TU Delft';
 const CONTACT_EMAIL = 'r.weijers@tudelft.nl';
 const TIMEZONE = 'Europe/Amsterdam';
+const MAP_URL = `${SITE_URL}map_with_arrow.png`;
+const MAP_HTML = '<br><br>Find the room on this map:<br><img src="cid:map" alt="Floor plan of the 4th floor with the room circled" width="600" style="max-width:100%;height:auto">';
+const SIGNATURE = 'With kind regards,\n\nRuben Weijers\nPhD candidate, TU Delft';
 
 function rpc(name, params) {
   const response = UrlFetchApp.fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
@@ -108,19 +111,38 @@ function toHtml(body, signup) {
     .replace(/\n/g, '<br>');
 }
 
+// Embedded rather than linked, because mail clients often hide remote images.
+// A missing map must not hold up a booking email, so the email then goes out without it.
+function fetchMap() {
+  try {
+    return UrlFetchApp.fetch(MAP_URL).getBlob().setName('map_with_arrow.png');
+  } catch (error) {
+    console.warn(`Could not fetch the map: ${error.message}`);
+    return null;
+  }
+}
+
 // An email counts as sent only after it goes out, so anything unsent is retried on the next run.
 // Logs carry the signup id only, so participant details stay out of the execution log.
 function runMailer() {
   const secret = PropertiesService.getScriptProperties().getProperty('MAILER_SECRET');
   const failed = [];
-  for (const signup of rpc('get_pending_emails', { p_secret: secret })) {
+  const pending = rpc('get_pending_emails', { p_secret: secret });
+  const map = pending.some((signup) => signup.kind !== 'session_cancelled') ? fetchMap() : null;
+  for (const signup of pending) {
     if (MailApp.getRemainingDailyQuota() < 1) {
       console.warn('Daily email quota used up; the rest go out once it resets.');
       break;
     }
     const { subject, body } = buildEmail(signup);
+    const showMap = map && signup.kind !== 'session_cancelled';
     try {
-      MailApp.sendEmail(signup.email, subject, body, { htmlBody: toHtml(body, signup), name: STUDY_TITLE, replyTo: CONTACT_EMAIL });
+      MailApp.sendEmail(signup.email, subject, `${body}\n\n${SIGNATURE}`, {
+        htmlBody: `${toHtml(body, signup)}${showMap ? MAP_HTML : ''}<br><br>${SIGNATURE.replace(/\n/g, '<br>')}`,
+        inlineImages: showMap ? { map } : {},
+        name: STUDY_TITLE,
+        replyTo: CONTACT_EMAIL,
+      });
     } catch (error) {
       console.error(`Could not email signup ${signup.id}: ${error.message}`);
       failed.push(signup.id);

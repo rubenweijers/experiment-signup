@@ -7,10 +7,10 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 export const STUDY_TITLE = 'Group Design Experiment';
 export const DURATION_LABEL = '~60 mins';
 export const COMPENSATION_LABEL = '€20 in cash';
-export const LOCATION_LABEL = 'Room 4B-280: IDE, Building 32, TU Delft';
+export const LOCATION_LABEL = 'Room 4B-280 (Product Evaluation Lab): IDE, Building 32, TU Delft';
 export const CONTACT_EMAIL = 'r.weijers@tudelft.nl';
 
-export const DEFAULT_ROOM = 'Room 4B-280';
+export const DEFAULT_ROOM = 'Room 4B-280 (Product Evaluation Lab)';
 export const DEFAULT_SLOT_MINUTES = 60;
 export const QUOTA_PER_CONDITION = 25;
 

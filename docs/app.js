@@ -58,7 +58,7 @@ async function loadSlots(notice = '') {
   }
   list.replaceChildren(
     notice ? h('p', { className: 'error', role: 'alert' }, notice) : '',
-    data.length ? '' : h('p', {}, 'No timeslots are available right now. Please check back soon.'),
+    data.length ? '' : h('p', {}, `No timeslots available now, feel free to email ${CONTACT_EMAIL} with your availability or check back soon.`),
     ...groupByDay(data).map((slots) => h('div', { className: 'day' },
       h('h3', { className: 'mono' }, fmtDay(slots[0].start_time)),
       h('div', { className: 'pills' }, slots.map((slot) => {

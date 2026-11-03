@@ -44,7 +44,7 @@ GitHub turns off scheduled workflows after 60 days without repository activity. 
 
 ## 6. Turn on automatic emails
 
-Confirmations and reminders go out from a dedicated Gmail account, through [`../apps-script/mailer.gs`](../apps-script/mailer.gs). Every minute it fetches who is due, emails them and marks them as sent. Replies go to `CONTACT_EMAIL`.
+Confirmations and reminders go out from a dedicated Gmail account, through [`../apps-script/mailer.gs`](../apps-script/mailer.gs). Every minute it fetches who is due, emails them and marks them as sent. Replies go to `CONTACT_EMAIL`. Confirmations and reminders embed the floor plan from `docs/map_with_arrow.png` on the published site; if it cannot be fetched, they go out without it and **Executions** shows a warning.
 
 1. Create the Gmail account and turn on 2-Step Verification. Keep the name neutral: it must not reveal the conditions.
 2. Run the current `schema.sql` in the **SQL Editor**, then get the mailer secret: `select secret from public.mailer_secret;`
