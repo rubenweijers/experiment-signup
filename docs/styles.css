@@ -11,6 +11,7 @@
   --surface: #f5f5f5;
   --hairline: #e0e0e0;
   --green: #0a7d33;
+  --green-light: #e6f4ea;
   --sans: 'Roboto', Arial, sans-serif;
   --mono: 'Roboto Mono', Consolas, monospace;
 }
@@ -164,6 +165,7 @@ select {
 .slot { margin-bottom: 12px; padding: 14px; border: 1px solid var(--black); }
 .slot.running { border-width: 3px; padding: 12px; }
 .slot.inactive { background: var(--surface); }
+.slot.completed { background: var(--green-light); }
 .slot-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
 .slot-title { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .slot-notes { margin-top: 10px; font-size: 14px; }

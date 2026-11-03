@@ -57,6 +57,8 @@ create table if not exists public.signups (
 alter table public.signups add column if not exists reminded_at timestamptz;
 alter table public.signups add column if not exists confirmation_sent_at timestamptz;
 alter table public.signups add column if not exists final_reminded_at timestamptz;
+alter table public.signups add column if not exists session_cancelled_at timestamptz;
+alter table public.signups add column if not exists cancellation_sent_at timestamptz;
 
 -- Upgrades a database created when phone numbers were collected, and deletes them.
 alter table public.signups drop column if exists phone;
@@ -239,13 +241,51 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Researcher RPCs
+-- ---------------------------------------------------------------------------
+
+-- Raises FORBIDDEN, SLOT_NOT_FOUND or CANNOT_CANCEL. Closes the slot and frees its
+-- seats; the mailer then tells the people who held them. The slot lock makes a
+-- concurrent book_slot either land before this, and be cancelled, or fail.
+create or replace function public.cancel_session(p_slot_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_start timestamptz;
+begin
+  if not public.is_admin() then
+    raise exception 'FORBIDDEN';
+  end if;
+
+  select s.start_time into v_start from public.slots s where s.id = p_slot_id for update;
+
+  if not found then
+    raise exception 'SLOT_NOT_FOUND';
+  end if;
+  if v_start <= now() then
+    raise exception 'CANNOT_CANCEL';
+  end if;
+
+  update public.slots set is_active = false where id = p_slot_id;
+
+  update public.signups
+  set status = 'cancelled', session_cancelled_at = now()
+  where slot_id = p_slot_id and status in ('booked', 'confirmed');
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Mailer RPCs
 -- ---------------------------------------------------------------------------
 
 -- Raises FORBIDDEN. A confirmation and a 24-hour reminder go only to 'booked' people.
--- The 1-hour reminder also goes to people who have since confirmed; a walk-in has
--- no confirmation email on record, so gets nothing. Someone who books inside a
--- reminder's window skips that reminder.
+-- The 1-hour reminder also goes to people who have since confirmed; a participant
+-- added by the researcher has no confirmation email on record, so gets neither.
+-- Someone who books inside a reminder's window skips that reminder. A session
+-- cancellation goes to everyone cancel_session removed, added by the researcher or not.
 create or replace function public.get_pending_emails(p_secret uuid)
 returns table (
   id           uuid,
@@ -270,6 +310,7 @@ begin
   return query
     select su.id,
            case
+             when su.status = 'cancelled' then 'session_cancelled'
              when su.confirmation_sent_at is null then 'confirmation'
              when s.start_time <= now() + interval '1 hour' then 'final_reminder'
              else 'reminder'
@@ -290,7 +331,10 @@ begin
             and su.confirmation_sent_at is not null
             and su.final_reminded_at is null
             and s.start_time <= now() + interval '1 hour'
-            and su.created_at < s.start_time - interval '1 hour'))
+            and su.created_at < s.start_time - interval '1 hour')
+        or (su.status = 'cancelled'
+            and su.session_cancelled_at is not null
+            and su.cancellation_sent_at is null))
     order by s.start_time, su.created_at;
 end;
 $$;
@@ -310,7 +354,8 @@ begin
   update public.signups su
   set confirmation_sent_at = case when p_kind = 'confirmation' then now() else su.confirmation_sent_at end,
       reminded_at          = case when p_kind = 'reminder' then now() else su.reminded_at end,
-      final_reminded_at    = case when p_kind = 'final_reminder' then now() else su.final_reminded_at end
+      final_reminded_at    = case when p_kind = 'final_reminder' then now() else su.final_reminded_at end,
+      cancellation_sent_at = case when p_kind = 'session_cancelled' then now() else su.cancellation_sent_at end
   where su.id = p_signup_id;
 end;
 $$;
@@ -328,10 +373,12 @@ revoke all on function public.is_admin() from public, anon, authenticated;
 revoke all on function public.get_available_slots() from public, anon, authenticated;
 revoke all on function public.book_slot(uuid, text, text, text) from public, anon, authenticated;
 revoke all on function public.cancel_booking(uuid) from public, anon, authenticated;
+revoke all on function public.cancel_session(uuid) from public, anon, authenticated;
 revoke all on function public.get_pending_emails(uuid) from public, anon, authenticated;
 revoke all on function public.mark_email_sent(uuid, uuid, text) from public, anon, authenticated;
 
 grant execute on function public.is_admin() to authenticated;
+grant execute on function public.cancel_session(uuid) to authenticated;
 -- authenticated too: a researcher signed in on the same origin hits the public page with that role.
 grant execute on function public.get_available_slots() to anon, authenticated;
 grant execute on function public.book_slot(uuid, text, text, text) to anon, authenticated;

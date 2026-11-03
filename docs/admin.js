@@ -138,10 +138,23 @@ function duplicateRows(slots) {
 
 function deleteSlot(slot) {
   const held = slot.signups.length;
+  const unsent = slot.signups.some((s) => s.session_cancelled_at && !s.cancellation_sent_at);
   const warning = held
-    ? `Delete this slot and the ${held} sign-up record(s) in it? Participants are not notified.`
+    ? `Delete this slot and the ${held} sign-up record(s) in it? Participants are not notified.${unsent ? ' Cancellation emails that have not gone out yet will be lost.' : ''}`
     : 'Delete this slot?';
   if (confirm(warning)) write(sb.from('slots').delete().eq('id', slot.id));
+}
+
+function seatHolders(slot) {
+  return slot.signups.filter((s) => s.status === 'booked' || s.status === 'confirmed');
+}
+
+function cancelSession(slot) {
+  const holders = seatHolders(slot).length;
+  const warning = holders
+    ? `Cancel this session? ${holders} participant(s) will be emailed that it is cancelled, and it leaves the public list.`
+    : 'Cancel this session? It has no participants to email, and it leaves the public list.';
+  if (confirm(warning)) write(sb.rpc('cancel_session', { p_slot_id: slot.id }));
 }
 
 // --- Roster ---
@@ -167,8 +180,8 @@ function participantRow(signup, slot) {
       h('span', { className: 'email' }, signup.email),
       h('span', { className: 'badge mono' }, signup.status.replace('_', '-').toUpperCase()),
       remindedBadge(signup),
-      signup.status === 'booked' && !signup.confirmation_sent_at
-        && h('span', { className: 'badge mono' }, 'CONFIRMATION NOT SENT')),
+      signup.status === 'cancelled' && signup.session_cancelled_at
+        && h('span', { className: 'badge mono' }, signup.cancellation_sent_at ? 'CANCELLATION EMAILED' : 'CANCELLATION EMAIL PENDING')),
     h('div', { className: 'participant-actions' },
       STATUS_ACTIONS.map(([status, label]) => h('button', {
         type: 'button',
@@ -267,7 +280,7 @@ function slotCard(slot) {
     onchange: (event) => write(sb.from('slots').update({ condition: event.target.value }).eq('id', slot.id)),
   }, h('option', { value: '2P' }, 'HHR'), h('option', { value: '3P' }, 'HHH'));
 
-  return h('article', { className: `slot${running ? ' running' : ''}${slot.is_active ? '' : ' inactive'}` },
+  return h('article', { className: `slot${running ? ' running' : ''}${slot.is_active ? '' : ' inactive'}${isGroupComplete(slot) ? ' completed' : ''}` },
     h('header', { className: 'slot-head' },
       h('div', { className: 'slot-title' },
         h('span', { className: 'mono strong' }, fmtRange(slot.start_time, slot.end_time)),
@@ -286,6 +299,9 @@ function slotCard(slot) {
           type: 'button',
           onclick: () => write(sb.from('slots').insert(duplicateRows([slot]))),
         }, 'Duplicate to next week'),
+        // A cancelled session is closed and holds nobody, so there is nothing left to cancel.
+        Date.parse(slot.start_time) > now && (slot.is_active || seatHolders(slot).length > 0)
+          && h('button', { className: 'button small', type: 'button', onclick: () => cancelSession(slot) }, 'Cancel session'),
         h('button', { className: 'button small', type: 'button', onclick: () => deleteSlot(slot) }, 'Delete'))),
 
     state.editing === slot.id && editForm(slot),
@@ -309,12 +325,12 @@ function slotCard(slot) {
           render();
           document.querySelector('.walkin input').focus();
         },
-      }, '+ Add Walk-in')));
+      }, '+ Add participant')));
 }
 
 function renderRoster() {
-  const today = localParts(new Date())[0];
-  const visible = state.slots.filter((s) => state.showPast || localParts(s.start_time)[0] >= today);
+  const now = Date.now();
+  const visible = state.slots.filter((s) => state.showPast || Date.parse(s.end_time) > now);
   if (!visible.length) {
     $('roster').replaceChildren(h('p', { className: 'empty' }, 'No timeslots to show.'));
     return;

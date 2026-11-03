@@ -36,6 +36,20 @@ function cancelLink(signup) {
 }
 
 function buildEmail(signup) {
+  if (signup.kind === 'session_cancelled') {
+    return {
+      subject: `Session cancelled: ${STUDY_TITLE}`,
+      body: [
+        `Hi ${signup.first_name},`,
+        '',
+        `Unfortunately, your session for the ${STUDY_TITLE} has been cancelled because of a lack of participants for your timeslot.`,
+        '',
+        ...appointmentLines(signup).slice(0, 2),
+        '',
+        `If you would still like to take part, you can book another time here: ${SITE_URL}`,
+      ].join('\n'),
+    };
+  }
   if (signup.kind === 'confirmation') {
     return {
       subject: `Booking confirmed: ${STUDY_TITLE}`,
@@ -85,9 +99,9 @@ function buildEmail(signup) {
   };
 }
 
-// The HTML version of a body, with the cancel URL behind the word 'here'. The first name comes from a public form, so it is escaped.
+// The HTML version of a body, with the URL behind the word 'here'. The first name comes from a public form, so it is escaped.
 function toHtml(body, signup) {
-  const link = cancelLink(signup);
+  const link = signup.kind === 'session_cancelled' ? SITE_URL : cancelLink(signup);
   return body
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(`here: ${link}`, `<a href="${link}">here</a>.`)
